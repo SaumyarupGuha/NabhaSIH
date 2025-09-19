@@ -79,7 +79,11 @@ export default function HomePage() {
           {getWelcomeMessage()}
 
           <div className="mb-8">
-            <Heart className="h-16 w-16 text-primary mx-auto mb-6 fill-current" />
+            <img 
+              src="/nabha_logo.png" 
+              className="h-24 w-auto mx-auto mb-4" 
+              alt="Nabha Health Logo"
+            />
             <h1 className="text-4xl md:text-6xl font-bold mb-6">Healthcare for Rural Nabha</h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
               Connect with local doctors, hospitals, and pharmacies from your village
