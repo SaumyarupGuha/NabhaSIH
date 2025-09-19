@@ -60,7 +60,7 @@ export function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-            <Heart className="h-6 w-6 fill-current" />
+            <img src="/nabha_logo.png" className="h-12 w-auto" alt="Nabha Health Logo"/>
             <span>Nabha Health</span>
           </Link>
 
