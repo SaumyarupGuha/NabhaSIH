@@ -11,21 +11,21 @@ i18n.use(initReactI18next).init({
   resources: {
     en: { 
       translation: en,
-      common: common.en,
-      patient: patient.en,
-      consultations: consultations.en
+      common: common.en || {},
+      patient: patient.en || {},
+      consultations: consultations.en || {}
     },
     hi: { 
       translation: hi,
-      common: common.hi,
-      patient: patient.hi,
-      consultations: consultations.hi
+      common: common.hi || {},
+      patient: patient.hi || {},
+      consultations: consultations.hi || {}
     },
     pa: { 
       translation: pa,
-      common: common.pa,
-      patient: patient.pa,
-      consultations: consultations.pa
+      common: common.pa || {},
+      patient: patient.pa || {},
+      consultations: consultations.pa || {}
     }
   },
   lng: localStorage.getItem('language') || 'en',
