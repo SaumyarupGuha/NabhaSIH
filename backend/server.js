@@ -21,11 +21,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection
-<<<<<<< HEAD
 mongoose.connect(process.env.MONGODB_URI, {
-=======
-mongoose.connect(process.env.MONGODB_URI,{
->>>>>>> ed27f3e6ba2527b9919c045b5b17ac9bd0ff3092
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
