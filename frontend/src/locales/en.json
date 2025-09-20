@@ -1,0 +1,59 @@
+{
+  "welcome": "Welcome back, {{name}}!",
+  "hero": {
+    "title": "Healthcare for Rural Nabha",
+    "subtitle": "Connect with local doctors, hospitals, and pharmacies from your village"
+  },
+  "buttons": {
+    "getStarted": "Get Started",
+    "bookConsultation": "Book Consultation",
+    "goToDashboard": "Go to Dashboard",
+    "findPharmacy": "Find Pharmacy",
+    "browseServices": "Browse Services",
+    "getStartedToday": "Get Started Today"
+  },
+  "features": {
+    "title": "Healthcare Services for Rural Communities",
+    "consultations": {
+      "title": "Consultations",
+      "description": "Connect with qualified doctors from Nabha Civil Hospital"
+    },
+    "pharmacies": {
+      "title": "Pharmacies",
+      "description": "Find and order medicines from local pharmacies"
+    },
+    "emergency": {
+      "title": "Emergency Contact",
+      "description": "24/7 emergency support for urgent medical needs"
+    }
+  },
+  "stats": {
+    "title": "Serving Rural Nabha Communities",
+    "patientsServed": "Patients Served",
+    "doctorsAvailable": "Doctors Available",
+    "partnerPharmacies": "Partner Pharmacies",
+    "emergencySupport": "Emergency Support"
+  },
+  "cta": {
+    "title": "Ready to Connect with Healthcare?",
+    "subtitle": "Join hundreds of families in rural Nabha who trust us for their healthcare needs."
+  },
+  "footer": {
+    "tagline": "Connecting rural communities with quality healthcare services.",
+    "services": "Services",
+    "onlineConsultations": "Online Consultations",
+    "medicineDelivery": "Medicine Delivery",
+    "emergencySupport": "Emergency Support",
+    "healthRecords": "Health Records",
+    "contact": "Contact",
+    "emergency": "Emergency: 108",
+    "languages": "Languages",
+    "copyright": "© 2025 Nabha Health. Serving rural communities with care."
+  },
+  "userRoles": {
+    "patient": "Access your medical records and book consultations",
+    "doctor": "Manage your patients and consultations",
+    "pharmacist": "Handle medicine orders and inventory",
+    "admin": "Oversee the entire healthcare platform"
+  }
+}

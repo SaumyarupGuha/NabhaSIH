@@ -1,37 +1,41 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
+
 import { useAuth } from '../context/AuthContext';
 import { Heart, Stethoscope, Pill, Phone, Users, Clock, MapPin } from 'lucide-react';
+import '../i18n';
 
 export default function HomePage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const features = [
     {
       icon: Stethoscope,
-      title: "Consultations",
-      description: "Connect with qualified doctors from Nabha Civil Hospital",
+      title: t('features.consultations.title'),
+      description: t('features.consultations.description'),
     },
     {
       icon: Pill,
-      title: "Pharmacies",
-      description: "Find and order medicines from local pharmacies",
+      title: t('features.pharmacies.title'),
+      description: t('features.pharmacies.description'),
     },
     {
       icon: Phone,
-      title: "Emergency Contact",
-      description: "24/7 emergency support for urgent medical needs",
+      title: t('features.emergency.title'),
+      description: t('features.emergency.description'),
     },
   ];
 
   const stats = [
-    { icon: Users, value: "500+", label: "Patients Served" },
-    { icon: Stethoscope, value: "25+", label: "Doctors Available" },
-    { icon: Pill, value: "15+", label: "Partner Pharmacies" },
-    { icon: Clock, value: "24/7", label: "Emergency Support" },
+    { icon: Users, value: "500+", label: t('stats.patientsServed') },
+    { icon: Stethoscope, value: "25+", label: t('stats.doctorsAvailable') },
+    { icon: Pill, value: "15+", label: t('stats.partnerPharmacies') },
+    { icon: Clock, value: "24/7", label: t('stats.emergencySupport') },
   ];
 
   const getDashboardLink = () => {
@@ -56,15 +60,15 @@ export default function HomePage() {
 
     return (
       <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 mb-8 max-w-4xl mx-auto">
-        <h3 className="text-lg font-semibold mb-2">Welcome back, {user.name}!</h3>
+        <h3 className="text-lg font-semibold mb-2">{t('welcome', { name: user.name })}</h3>
         <p className="text-muted-foreground mb-4">
-          {user.role === "patient" && "Access your medical records and book consultations"}
-          {user.role === "doctor" && "Manage your patients and consultations"}
-          {user.role === "pharmacist" && "Handle medicine orders and inventory"}
-          {user.role === "admin" && "Oversee the entire healthcare platform"}
+          {user.role === "patient" && t('userRoles.patient')}
+          {user.role === "doctor" && t('userRoles.doctor')}
+          {user.role === "pharmacist" && t('userRoles.pharmacist')}
+          {user.role === "admin" && t('userRoles.admin')}
         </p>
         <Button asChild>
-          <Link to={getDashboardLink()}>Go to Dashboard</Link>
+          <Link to={getDashboardLink()}>{t('buttons.goToDashboard')}</Link>
         </Button>
       </div>
     );
@@ -84,9 +88,9 @@ export default function HomePage() {
               className="h-24 w-auto mx-auto mb-4" 
               alt="Nabha Health Logo"
             />
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Healthcare for Rural Nabha</h1>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">{t('hero.title')}</h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Connect with local doctors, hospitals, and pharmacies from your village
+              {t('hero.subtitle')}
             </p>
           </div>
 
@@ -96,14 +100,14 @@ export default function HomePage() {
                 <Button size="lg" className="text-lg px-8 py-6" asChild>
                   <Link to={user.role === "patient" ? "/consultations" : getDashboardLink()}>
                     <Stethoscope className="mr-2 h-5 w-5" />
-                    {user.role === "patient" ? "Book Consultation" : "Go to Dashboard"}
+                    {user.role === "patient" ? t('buttons.bookConsultation') : t('buttons.goToDashboard')}
                   </Link>
                 </Button>
                 {user.role === "patient" && (
                   <Button size="lg" variant="outline" className="text-lg px-8 py-6" asChild>
                     <Link to="/pharmacies">
                       <Pill className="mr-2 h-5 w-5" />
-                      Find Pharmacy
+                      {t('buttons.findPharmacy')}
                     </Link>
                   </Button>
                 )}
@@ -113,13 +117,13 @@ export default function HomePage() {
                 <Button size="lg" className="text-lg px-8 py-6" asChild>
                   <Link to="/signup">
                     <Stethoscope className="mr-2 h-5 w-5" />
-                    Get Started
+                    {t('buttons.getStarted')}
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="text-lg px-8 py-6" asChild>
                   <Link to="/consultations">
                     <Pill className="mr-2 h-5 w-5" />
-                    Browse Services
+                    {t('buttons.browseServices')}
                   </Link>
                 </Button>
               </>
@@ -131,7 +135,7 @@ export default function HomePage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">
-            Healthcare Services for Rural Communities
+            {t('features.title')}
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -152,7 +156,7 @@ export default function HomePage() {
 
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Serving Rural Nabha Communities</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">{t('stats.title')}</h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
@@ -168,13 +172,13 @@ export default function HomePage() {
 
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-6">Ready to Connect with Healthcare?</h2>
+          <h2 className="text-3xl font-bold mb-6">{t('cta.title')}</h2>
           <p className="text-xl mb-8">
-            Join hundreds of families in rural Nabha who trust us for their healthcare needs.
+            {t('cta.subtitle')}
           </p>
           <Button size="lg" variant="secondary" className="text-lg px-8 py-6" asChild>
             <Link to={user ? getDashboardLink() : "/signup"}>
-              {user ? "Go to Dashboard" : "Get Started Today"}
+              {user ? t('buttons.goToDashboard') : t('buttons.getStartedToday')}
             </Link>
           </Button>
         </div>
@@ -185,38 +189,43 @@ export default function HomePage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 font-bold text-xl text-primary mb-4">
-                <Heart className="h-6 w-6 fill-current" />
+                <img src="/nabha_logo.png" className="h-12 w-auto" alt="Nabha Health Logo"/>
                 Nabha Health
               </div>
-              <p className="text-muted-foreground">Connecting rural communities with quality healthcare services.</p>
+              <p className="text-muted-foreground">{t('footer.tagline')}</p>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Services</h3>
+              <h3 className="font-semibold mb-4">{t('footer.services')}</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li>Online Consultations</li>
-                <li>Medicine Delivery</li>
-                <li>Emergency Support</li>
-                <li>Health Records</li>
+                <li>{t('footer.onlineConsultations')}</li>
+                <li>{t('footer.medicineDelivery')}</li>
+                <li>{t('footer.emergencySupport')}</li>
+                <li>{t('footer.healthRecords')}</li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Contact</h3>
+              <h3 className="font-semibold mb-4">{t('footer.contact')}</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Nabha, Punjab
+                  <button 
+                    onClick={() => window.open('https://maps.google.com/maps?q=Nabha,+Punjab,+India', '_blank')}
+                    className="flex items-center gap-2 hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Nabha, Punjab
+                  </button>
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  Emergency: 108
+                  {t('footer.emergency')}
                 </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Languages</h3>
+              <h3 className="font-semibold mb-4">{t('footer.languages')}</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li>English</li>
                 <li>हिंदी (Hindi)</li>
@@ -226,7 +235,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2024 Nabha Health. Serving rural communities with care.</p>
+            <p>{t('footer.copyright')}</p>
           </div>
         </div>
       </footer>

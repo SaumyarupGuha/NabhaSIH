@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
+import { LanguageDropdown } from './LanguageDropdown';
 import { useAuth } from '../context/AuthContext';
 import { Heart, Menu, X, User, LogOut } from 'lucide-react';
 
@@ -8,16 +10,17 @@ export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation('common');
 
   const getNavigationItems = () => {
-    const baseItems = [{ href: "/", label: "Home" }];
+    const baseItems = [{ href: "/", label: t('nav.home') }];
 
     if (!user) {
       return [
         ...baseItems,
-        { href: "/consultations", label: "Consultations" },
-        { href: "/pharmacies", label: "Pharmacies" },
-        { href: "/hospitals", label: "Hospitals" },
+        { href: "/consultations", label: t('nav.consultations') },
+        { href: "/pharmacies", label: t('nav.pharmacies') },
+        { href: "/hospitals", label: t('nav.hospitals') },
       ];
     }
 
@@ -25,28 +28,28 @@ export function Navigation() {
       case "patient":
         return [
           ...baseItems,
-          { href: "/patient", label: "My Dashboard" },
-          { href: "/consultations", label: "Consultations" },
-          { href: "/pharmacies", label: "Pharmacies" },
+          { href: "/patient", label: t('nav.myDashboard') },
+          { href: "/consultations", label: t('nav.consultations') },
+          { href: "/pharmacies", label: t('nav.pharmacies') },
         ];
       case "doctor":
         return [
           ...baseItems,
-          { href: "/hospital-dashboard", label: "Doctor Dashboard" },
-          { href: "/hospitals", label: "Hospitals" },
+          { href: "/hospital-dashboard", label: t('nav.doctorDashboard') },
+          { href: "/hospitals", label: t('nav.hospitals') },
         ];
       case "pharmacist":
         return [
           ...baseItems,
-          { href: "/pharmacy-dashboard", label: "Pharmacy Dashboard" },
-          { href: "/pharmacies", label: "Pharmacies" },
+          { href: "/pharmacy-dashboard", label: t('nav.pharmacyDashboard') },
+          { href: "/pharmacies", label: t('nav.pharmacies') },
         ];
       case "admin":
         return [
           ...baseItems,
-          { href: "/admin", label: "Admin" },
-          { href: "/hospital-dashboard", label: "Hospital View" },
-          { href: "/pharmacy-dashboard", label: "Pharmacy View" },
+          { href: "/admin", label: t('nav.admin') },
+          { href: "/hospital-dashboard", label: t('nav.hospitalView') },
+          { href: "/pharmacy-dashboard", label: t('nav.pharmacyView') },
         ];
       default:
         return baseItems;
@@ -79,6 +82,8 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageDropdown />
+            
             {user ? (
               <div className="hidden md:flex items-center gap-2">
                 <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full">
@@ -93,10 +98,10 @@ export function Navigation() {
             ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/login">Login</Link>
+                  <Link to="/login">{t('nav.login')}</Link>
                 </Button>
                 <Button size="sm" asChild>
-                  <Link to="/signup">Sign Up</Link>
+                  <Link to="/signup">{t('nav.signup')}</Link>
                 </Button>
               </div>
             )}
@@ -140,7 +145,7 @@ export function Navigation() {
                       }}
                       className="w-full px-4 py-2 text-left text-foreground hover:text-primary hover:bg-muted rounded-md transition-colors"
                     >
-                      Logout
+                      {t('nav.logout')}
                     </button>
                   </>
                 ) : (
@@ -150,14 +155,14 @@ export function Navigation() {
                       className="px-4 py-2 text-foreground hover:text-primary hover:bg-muted rounded-md transition-colors block"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Login
+                      {t('nav.login')}
                     </Link>
                     <Link
                       to="/signup"
                       className="px-4 py-2 text-foreground hover:text-primary hover:bg-muted rounded-md transition-colors block"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Sign Up
+                      {t('nav.signup')}
                     </Link>
                   </>
                 )}

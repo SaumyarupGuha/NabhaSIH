@@ -1,0 +1,95 @@
+{
+  "en": {
+    "nav": {
+      "home": "Home",
+      "myDashboard": "My Dashboard",
+      "consultations": "Consultations",
+      "pharmacies": "Pharmacies",
+      "hospitals": "Hospitals",
+      "doctorDashboard": "Doctor Dashboard",
+      "pharmacyDashboard": "Pharmacy Dashboard",
+      "admin": "Admin",
+      "hospitalView": "Hospital View",
+      "pharmacyView": "Pharmacy View",
+      "login": "Login",
+      "signup": "Sign Up",
+      "logout": "Logout"
+    },
+    "common": {
+      "loading": "Loading...",
+      "error": "Error",
+      "success": "Success",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "view": "View",
+      "back": "Back",
+      "next": "Next",
+      "previous": "Previous"
+    }
+  },
+  "hi": {
+    "nav": {
+      "home": "होम",
+      "myDashboard": "मेरा डैशबोर्ड",
+      "consultations": "परामर्श",
+      "pharmacies": "फार्मेसी",
+      "hospitals": "अस्पताल",
+      "doctorDashboard": "डॉक्टर डैशबोर्ड",
+      "pharmacyDashboard": "फार्मेसी डैशबोर्ड",
+      "admin": "एडमिन",
+      "hospitalView": "अस्पताल दृश्य",
+      "pharmacyView": "फार्मेसी दृश्य",
+      "login": "लॉगिन",
+      "signup": "साइन अप",
+      "logout": "लॉगआउट"
+    },
+    "common": {
+      "loading": "लोड हो रहा है...",
+      "error": "त्रुटि",
+      "success": "सफलता",
+      "cancel": "रद्द करें",
+      "confirm": "पुष्टि करें",
+      "save": "सेव करें",
+      "edit": "संपादित करें",
+      "delete": "हटाएं",
+      "view": "देखें",
+      "back": "वापस",
+      "next": "अगला",
+      "previous": "पिछला"
+    }
+  },
+  "pa": {
+    "nav": {
+      "home": "ਘਰ",
+      "myDashboard": "ਮੇਰਾ ਡੈਸ਼ਬੋਰਡ",
+      "consultations": "ਸਲਾਹ",
+      "pharmacies": "ਦਵਾਈ ਦੁਕਾਨਾਂ",
+      "hospitals": "ਹਸਪਤਾਲ",
+      "doctorDashboard": "ਡਾਕਟਰ ਡੈਸ਼ਬੋਰਡ",
+      "pharmacyDashboard": "ਫਾਰਮੇਸੀ ਡੈਸ਼ਬੋਰਡ",
+      "admin": "ਐਡਮਿਨ",
+      "hospitalView": "ਹਸਪਤਾਲ ਦ੍ਰਿਸ਼",
+      "pharmacyView": "ਫਾਰਮੇਸੀ ਦ੍ਰਿਸ਼",
+      "login": "ਲਾਗਇਨ",
+      "signup": "ਸਾਈਨ ਅਪ",
+      "logout": "ਲਾਗਆਉਟ"
+    },
+    "common": {
+      "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...",
+      "error": "ਗਲਤੀ",
+      "success": "ਸਫਲਤਾ",
+      "cancel": "ਰੱਦ ਕਰੋ",
+      "confirm": "ਪੁਸ਼ਟੀ ਕਰੋ",
+      "save": "ਸੇਵ ਕਰੋ",
+      "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
+      "delete": "ਮਿਟਾਓ",
+      "view": "ਵੇਖੋ",
+      "back": "ਵਾਪਸ",
+      "next": "ਅਗਲਾ",
+      "previous": "ਪਿਛਲਾ"
+    }
+  }
+}
