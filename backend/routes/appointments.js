@@ -120,12 +120,12 @@ router.patch('/:id/status', [
 });
 
 // Get available doctors
-router.get('/doctors', auth, async (req, res) => {
+router.get('/doctors', async (req, res) => {
   try {
     const doctors = await User.find({ 
       role: 'doctor', 
       isVerified: true 
-    }).select('firstName lastName specialization hospital');
+    }).select('firstName lastName specialization hospital consultationFee availableDays');
 
     res.json(doctors);
   } catch (error) {
