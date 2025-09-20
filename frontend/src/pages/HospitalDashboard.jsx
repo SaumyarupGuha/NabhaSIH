@@ -124,7 +124,7 @@ export default function HospitalDashboard() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="queue">Patient Queue</TabsTrigger>
             <TabsTrigger value="consultations">Consultations</TabsTrigger>
-            <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+            <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger> 
             <TabsTrigger value="records">Medical Records</TabsTrigger>
           </TabsList>
 

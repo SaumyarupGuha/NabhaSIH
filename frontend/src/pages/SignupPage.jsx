@@ -7,6 +7,8 @@ import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Textarea } from '../components/ui/Textarea';
 import { useAuth } from '../context/AuthContext';
+import { TermsModal } from '../components/TermsModal';
+import { PrivacyModal } from '../components/PrivacyModal';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
 
 export default function SignupPage() {
@@ -31,6 +33,8 @@ export default function SignupPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -345,13 +349,21 @@ export default function SignupPage() {
                 <input type="checkbox" className="rounded border-border mt-1" required />
                 <div className="text-sm text-muted-foreground">
                   I agree to the{" "}
-                  <Link to="/terms" className="text-primary hover:underline">
+                  <button 
+                    type="button"
+                    onClick={() => setShowTerms(true)}
+                    className="text-primary hover:underline"
+                  >
                     Terms of Service
-                  </Link>{" "}
+                  </button>{" "}
                   and{" "}
-                  <Link to="/privacy" className="text-primary hover:underline">
+                  <button 
+                    type="button"
+                    onClick={() => setShowPrivacy(true)}
+                    className="text-primary hover:underline"
+                  >
                     Privacy Policy
-                  </Link>
+                  </button>
                 </div>
               </div>
 
@@ -370,6 +382,9 @@ export default function SignupPage() {
           </CardContent>
         </Card>
       </div>
+      
+      <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+      <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </div>
   );
 }
