@@ -4,13 +4,16 @@ import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
+import { useCart } from '../context/CartContext';
+import { CartModal } from '../components/CartModal';
 import { pharmacyAPI } from '../lib/api';
-import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill } from 'lucide-react';
+import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 
 export default function PharmaciesPage() {
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { addToCart, setIsCartOpen, getCartCount } = useCart();
 
   const commonMedicines = [
     { name: "Paracetamol 500mg", price: "₹15", availability: "In Stock" },
@@ -24,8 +27,11 @@ export default function PharmaciesPage() {
   useEffect(() => {
     const fetchPharmacies = async () => {
       try {
-        const response = await pharmacyAPI.getPharmacies();
-        setPharmacies(response.data);
+        const response = await fetch('http://localhost:5000/api/pharmacies');
+        const data = await response.json();
+        if (data.success) {
+          setPharmacies(data.data);
+        }
       } catch (error) {
         console.error('Error fetching pharmacies:', error);
       } finally {
@@ -99,7 +105,11 @@ export default function PharmaciesPage() {
                     className={`cursor-pointer transition-all ${
                       selectedPharmacy?._id === pharmacy._id ? "ring-2 ring-primary" : "hover:shadow-lg"
                     }`}
-                    onClick={() => setSelectedPharmacy(pharmacy)}
+                    onClick={() => {
+                      const googleQuery = `${pharmacy.name} ${pharmacy.address} Nabha Punjab reviews`;
+                      const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`;
+                      window.open(googleUrl, '_blank');
+                    }}
                   >
                     <CardContent className="p-6">
                       <div className="flex gap-4">
@@ -109,16 +119,21 @@ export default function PharmaciesPage() {
                         <div className="flex-1">
                           <div className="flex items-start justify-between mb-2">
                             <div>
-                              <h3 className="text-xl font-semibold">{pharmacy.pharmacyName}</h3>
-                              <p className="text-muted-foreground">Owner: {pharmacy.firstName} {pharmacy.lastName}</p>
+                              <h3 className="text-xl font-semibold">{pharmacy.name}</h3>
+                              {pharmacy.notes && (
+                                <p className="text-muted-foreground text-sm">{pharmacy.notes}</p>
+                              )}
                             </div>
                             <div className="text-right">
                               <div className="flex items-center gap-1 mb-1">
                                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                <span className="font-medium">4.7</span>
+                                <span className="font-medium">{pharmacy.rating}</span>
                               </div>
-                              <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                Open Now
+                              <Badge 
+                                variant="secondary" 
+                                className={pharmacy.isOpen24Hours ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}
+                              >
+                                {pharmacy.isOpen24Hours ? "Open 24/7" : pharmacy.status}
                               </Badge>
                             </div>
                           </div>
@@ -126,37 +141,64 @@ export default function PharmaciesPage() {
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <MapPin className="h-4 w-4" />
-                              {pharmacy.pharmacyAddress} • {pharmacy.village}
+                              {pharmacy.address}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              8:00 AM - 10:00 PM
+                              {pharmacy.hours}
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Phone className="h-4 w-4" />
-                              {pharmacy.phone}
-                            </div>
+                            {pharmacy.phone && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Phone className="h-4 w-4" />
+                                {pharmacy.phone}
+                              </div>
+                            )}
                           </div>
 
                           <div className="mb-4">
                             <p className="text-sm font-medium mb-2">Services:</p>
                             <div className="flex flex-wrap gap-1">
-                              <Badge variant="outline" className="text-xs">Home Delivery</Badge>
-                              <Badge variant="outline" className="text-xs">Online Orders</Badge>
-                              <Badge variant="outline" className="text-xs">24/7 Emergency</Badge>
+                              {pharmacy.services.map((service, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {service}
+                                </Badge>
+                              ))}
                             </div>
                           </div>
 
                           <div className="flex gap-2">
-                            <Button size="sm">
+                            <Button 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsCartOpen(true);
+                              }}
+                            >
                               <Pill className="mr-2 h-4 w-4" />
                               Order Medicines
                             </Button>
-                            <Button size="sm" variant="outline">
-                              <Phone className="mr-2 h-4 w-4" />
-                              Call Now
-                            </Button>
-                            <Button size="sm" variant="outline">
+                            {pharmacy.phone && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`tel:${pharmacy.phone}`, '_self');
+                                }}
+                              >
+                                <Phone className="mr-2 h-4 w-4" />
+                                Call Now
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const mapsUrl = `https://maps.google.com/maps?q=${encodeURIComponent(pharmacy.address + ', Nabha, Punjab')}`;
+                                window.open(mapsUrl, '_blank');
+                              }}
+                            >
                               <NavigationIcon className="mr-2 h-4 w-4" />
                               Get Directions
                             </Button>
@@ -195,14 +237,25 @@ export default function PharmaciesPage() {
                         >
                           {medicine.availability}
                         </Badge>
-                        <Button size="sm" variant="outline" className="text-xs">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-xs"
+                          onClick={() => addToCart(medicine)}
+                        >
                           Add
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
-                <Button className="w-full">View Cart & Checkout</Button>
+                <Button 
+                  className="w-full" 
+                  onClick={() => setIsCartOpen(true)}
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  View Cart ({getCartCount()}) & Checkout
+                </Button>
               </CardContent>
             </Card>
 
@@ -224,6 +277,8 @@ export default function PharmaciesPage() {
           </div>
         </div>
       </div>
+      
+      <CartModal />
     </div>
   );
 }
