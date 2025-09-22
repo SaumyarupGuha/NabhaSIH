@@ -82,6 +82,26 @@ app.get('/api/health', (req, res) => {
   res.json({ message: 'Nabha Health API is running', status: 'OK' });
 });
 
+// Redirect routes without /api prefix
+app.use('/auth', (req, res) => {
+  res.redirect(308, `/api/auth${req.path}`);
+});
+app.use('/users', (req, res) => {
+  res.redirect(308, `/api/users${req.path}`);
+});
+app.use('/appointments', (req, res) => {
+  res.redirect(308, `/api/appointments${req.path}`);
+});
+app.use('/prescriptions', (req, res) => {
+  res.redirect(308, `/api/prescriptions${req.path}`);
+});
+app.use('/pharmacies', (req, res) => {
+  res.redirect(308, `/api/pharmacies${req.path}`);
+});
+app.use('/health-data', (req, res) => {
+  res.redirect(308, `/api/health-data${req.path}`);
+});
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Socket.io enabled for real-time notifications');
