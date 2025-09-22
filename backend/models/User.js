@@ -81,6 +81,12 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: function() { return this.role === 'patient'; }
   },
+  // Patient-Doctor relationship
+  assignedDoctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: function() { return this.role === 'patient'; }
+  },
   avatar: String
 }, {
   timestamps: true

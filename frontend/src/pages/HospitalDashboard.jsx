@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
@@ -6,12 +6,21 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Textarea } from '../components/ui/Textarea';
+import { DoctorAlerts } from '../components/DoctorAlerts';
+import { FloatingAlerts } from '../components/FloatingAlerts';
 import {
   Users, Calendar, FileText, Pill, Clock, Phone, Stethoscope,
   CheckCircle, Plus, Search, Eye, Edit
 } from 'lucide-react';
 
 export default function HospitalDashboard() {
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    // Get current user from localStorage or context
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setCurrentUser(user);
+  }, []);
   const stats = [
     { title: "Today's Patients", value: "42", change: "+8%", icon: Users },
     { title: "Appointments", value: "28", change: "+12%", icon: Calendar },
@@ -120,13 +129,20 @@ export default function HospitalDashboard() {
           ))}
         </div>
 
-        <Tabs defaultValue="queue" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="alerts" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="alerts">Health Alerts</TabsTrigger>
             <TabsTrigger value="queue">Patient Queue</TabsTrigger>
             <TabsTrigger value="consultations">Consultations</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger> 
             <TabsTrigger value="records">Medical Records</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="alerts">
+            {currentUser && currentUser._id && (
+              <DoctorAlerts doctorId={currentUser._id} />
+            )}
+          </TabsContent>
 
           <TabsContent value="queue">
             <Card>
@@ -350,6 +366,11 @@ export default function HospitalDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Floating Alerts for all doctors */}
+      {currentUser && currentUser._id && (
+        <FloatingAlerts doctorId={currentUser._id} />
+      )}
     </div>
   );
 }

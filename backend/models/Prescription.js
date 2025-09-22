@@ -7,15 +7,16 @@ const medicineSchema = new mongoose.Schema({
   },
   dosage: {
     type: String,
-    required: true
   },
   frequency: {
     type: String,
-    required: true
   },
   duration: {
     type: String,
-    required: true
+  },
+  quantity: {
+    type: Number,
+    default: 1
   },
   instructions: String
 });
