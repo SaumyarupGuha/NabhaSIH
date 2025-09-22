@@ -16,12 +16,12 @@ export default function PharmaciesPage() {
   const { addToCart, setIsCartOpen, getCartCount } = useCart();
 
   const commonMedicines = [
-    { name: "Paracetamol 500mg", price: "₹15", availability: "In Stock" },
-    { name: "Crocin Advance", price: "₹25", availability: "In Stock" },
-    { name: "Cough Syrup", price: "₹45", availability: "In Stock" },
-    { name: "ORS Packets", price: "₹8", availability: "In Stock" },
-    { name: "Vitamin D3", price: "₹120", availability: "Limited Stock" },
-    { name: "Amoxicillin 250mg", price: "₹85", availability: "In Stock" },
+    { name: "Paracetamol 500mg", price: "₹2.50", availability: "In Stock" },
+    { name: "Amoxicillin 250mg", price: "₹8.00", availability: "In Stock" },
+    { name: "Cough Syrup", price: "₹45.00", availability: "In Stock" },
+    { name: "Insulin Injection", price: "₹120.00", availability: "In Stock" },
+    { name: "Vitamin D3", price: "₹5.00", availability: "In Stock" },
+    { name: "Aspirin 75mg", price: "₹1.50", availability: "Limited Stock" },
   ];
 
   useEffect(() => {

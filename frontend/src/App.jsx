@@ -11,6 +11,7 @@ import ConsultationsPage from './pages/ConsultationsPage';
 import PharmaciesPage from './pages/PharmaciesPage';
 import HospitalsPage from './pages/HospitalsPage';
 import HospitalDashboard from './pages/HospitalDashboard';
+import PharmacyDashboard from './pages/PharmacyDashboard';
 
 
 function App() {
@@ -28,7 +29,7 @@ function App() {
             <Route path="/pharmacies" element={<PharmaciesPage />} />
             <Route path="/hospitals" element={<HospitalsPage />} />
             <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
-            <Route path="/pharmacy-dashboard" element={<div>Pharmacy Dashboard</div>} />
+            <Route path="/pharmacy-dashboard" element={<PharmacyDashboard />} />
             <Route path="/admin" element={<div>Admin Dashboard</div>} />
 
             </Routes>
