@@ -11,6 +11,8 @@ const userRoutes = require('./routes/users');
 const appointmentRoutes = require('./routes/appointments');
 const prescriptionRoutes = require('./routes/prescriptions');
 const pharmacyRoutes = require('./routes/pharmacies');
+const orderRoutes = require('./routes/orders');
+const stockRoutes = require('./routes/stock');
 const healthDataRoutes = require('./routes/healthData');
 const testAlertRoutes = require('./routes/testAlert');
 
@@ -20,13 +22,13 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
+    origin: "http://localhost:5173",
     origin: "*",
     methods: ["GET", "POST"]
   }
 });
 const PORT = process.env.PORT || 5000;
 
-// Make io available to routes
 app.set('io', io);
 
 // Middleware
@@ -74,13 +76,37 @@ app.use('/api/users', userRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
+
+app.use('/api/orders', orderRoutes);
+app.use('/api/stock', stockRoutes);
+
 app.use('/api/health-data', healthDataRoutes);
 app.use('/api/test-alert', testAlertRoutes);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ message: 'Nabha Health API is running', status: 'OK' });
 });
+
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+  
+  socket.on('joinPharmacy', (pharmacyId) => {
+    socket.join(`pharmacy_${pharmacyId}`);
+    console.log(`Pharmacy ${pharmacyId} joined`);
+  });
+  
+  socket.on('joinOrder', (orderId) => {
+    socket.join(`order_${orderId}`);
+    console.log(`Order ${orderId} joined`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
 
 // Redirect routes without /api prefix
 app.use('/auth', (req, res) => {

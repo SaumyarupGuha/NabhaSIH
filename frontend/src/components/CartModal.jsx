@@ -24,13 +24,50 @@ export const CartModal = () => {
 
   if (!isCartOpen) return null;
 
-  const handleCheckout = (e) => {
+  const handleCheckout = async (e) => {
     e.preventDefault();
-    // Simulate order placement
-    alert(`Order placed successfully! Total: ₹${getCartTotal().toFixed(2)}\nDelivery in 30-45 minutes.`);
-    clearCart();
-    setIsCartOpen(false);
-    setShowCheckout(false);
+    
+    try {
+      const orderPayload = {
+        orderType: 'patient',
+        items: cartItems.map(item => ({
+          medicineName: item.name,
+          quantity: item.quantity,
+          unitPrice: parseFloat(item.price.replace('₹', '')),
+          totalPrice: parseFloat(item.price.replace('₹', '')) * item.quantity
+        })),
+        customerInfo: {
+          name: orderData.name,
+          phone: orderData.phone,
+          address: orderData.address
+        },
+        deliveryType: 'delivery',
+        deliveryAddress: orderData.address,
+        coordinates: { lat: 30.7046, lng: 76.1512 },
+        orderedBy: '68ccf820249ad6de413eab2f', // Valid patient ObjectId
+        assignedPharmacy: '68ccf820249ad6de413eab2e' // Explicitly assign to your pharmacy
+      };
+
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`Order placed successfully! Order #${result.data.orderNumber}\nAssigned to: ${result.assignedPharmacy.name}\nEstimated delivery: 30-45 minutes`);
+        clearCart();
+        setIsCartOpen(false);
+        setShowCheckout(false);
+      } else {
+        alert('Error placing order: ' + result.message);
+      }
+    } catch (error) {
+      alert('Error placing order. Please try again.');
+      console.error('Order error:', error);
+    }
   };
 
   return (
