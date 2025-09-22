@@ -1,121 +1,116 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
-const Prescription = require('../models/Prescription');
-const Appointment = require('../models/Appointment');
-const { auth, authorize } = require('../middleware/auth');
-
+const fetch = require('node-fetch');
+const mongoose = require('mongoose');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const router = express.Router();
+const { auth, authorize } = require('../middleware/auth');
+const Prescription = require('../models/Prescription');
 
-// Get prescriptions
-router.get('/', auth, async (req, res) => {
-  try {
-    let query = {};
-    
-    if (req.user.role === 'patient') {
-      query.patient = req.user._id;
-    } else if (req.user.role === 'doctor') {
-      query.doctor = req.user._id;
-    }
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
+});
 
-    const prescriptions = await Prescription.find(query)
-      .populate('patient', 'firstName lastName phone')
-      .populate('doctor', 'firstName lastName specialization')
-      .populate('appointment', 'date time')
-      .sort({ createdAt: -1 });
+console.log('Cloudinary config check:', {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set'
+});
 
-    res.json(prescriptions);
-  } catch (error) {
-    console.error('Get prescriptions error:', error);
-    res.status(500).json({ message: 'Server error' });
+// Configure multer
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'), false);
   }
 });
 
-// Create prescription (doctors only)
-router.post('/', [
-  auth,
-  authorize('doctor'),
-  body('appointmentId').notEmpty().withMessage('Appointment ID is required'),
-  body('diagnosis').notEmpty().withMessage('Diagnosis is required'),
-  body('medicines').isArray({ min: 1 }).withMessage('At least one medicine is required')
-], async (req, res) => {
+// Upload to Cloudinary helper
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { 
+        resource_type: 'image', 
+        folder: 'prescriptions',
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    ).end(buffer);
+  });
+};
+
+// Extract text from uploaded prescription image
+router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'No image file provided' });
 
-    const { appointmentId, diagnosis, medicines, notes } = req.body;
-
-    // Verify appointment exists and belongs to doctor
-    const appointment = await Appointment.findOne({
-      _id: appointmentId,
-      doctor: req.user._id
+    console.log('Uploading to Cloudinary...');
+    console.log('Environment check:', {
+      CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+      CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Not set'
     });
+    const uploadResult = await uploadToCloudinary(req.file.buffer);
+    console.log('Cloudinary URL:', uploadResult.secure_url);
 
-    if (!appointment) {
-      return res.status(404).json({ message: 'Appointment not found' });
-    }
+    // OCR API request
+    const response = await fetch(`https://api.apilayer.com/image_to_text/url?url=${encodeURIComponent(uploadResult.secure_url)}`, {
+      method: 'GET',
+      headers: { 'apikey': process.env.IMAGE_TO_TEXT_API_KEY }
+    });
+    
+    const text = await response.text();
+    console.log('OCR Response:', text);
 
-    // Check if prescription already exists
-    const existingPrescription = await Prescription.findOne({ appointment: appointmentId });
-    if (existingPrescription) {
-      return res.status(400).json({ message: 'Prescription already exists for this appointment' });
-    }
+    // Parse medicines
+    const medicines = parseMedicinesFromText(text);
 
+    // Save prescription to DB
     const prescription = new Prescription({
-      patient: appointment.patient,
-      doctor: req.user._id,
-      appointment: appointmentId,
-      diagnosis,
-      medicines,
-      notes
+      patient: req.user.id,
+      doctor: req.user.id,
+      appointment: new mongoose.Types.ObjectId(),
+      medicines: medicines.map(med => ({ name: med.name, quantity: med.quantity || 1 })),
+      diagnosis: 'Prescription from uploaded image',
+      status: 'active'
     });
-
     await prescription.save();
 
-    // Update appointment with prescription
-    appointment.prescription = prescription._id;
-    await appointment.save();
+    res.json({ success: true, data: { extractedText: text, medicines, prescriptionId: prescription._id, imageUrl: uploadResult.secure_url } });
 
-    const populatedPrescription = await Prescription.findById(prescription._id)
-      .populate('patient', 'firstName lastName phone')
-      .populate('appointment', 'date time');
-
-    res.status(201).json({
-      message: 'Prescription created successfully',
-      prescription: populatedPrescription
-    });
   } catch (error) {
-    console.error('Create prescription error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Get prescription by ID
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const prescription = await Prescription.findById(req.params.id)
-      .populate('patient', 'firstName lastName phone village')
-      .populate('doctor', 'firstName lastName specialization hospital')
-      .populate('appointment', 'date time symptoms');
+function parseMedicinesFromText(text) {
+  const keywords = ['paracetamol','crocin','aspirin','ibuprofen','amoxicillin','azithromycin','omeprazole','metformin','atorvastatin','losartan','tablet','capsule','syrup','mg','ml','dolo','combiflam','disprin'];
+  const lines = text.toLowerCase().split('\n');
+  const found = [];
+  const added = new Set();
 
-    if (!prescription) {
-      return res.status(404).json({ message: 'Prescription not found' });
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed.length > 2 && keywords.some(k => trimmed.includes(k)) && !added.has(trimmed)) {
+      const qtyMatch = trimmed.match(/\d+/);
+      const qty = qtyMatch ? parseInt(qtyMatch[0]) : 1;
+      found.push({ name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1), quantity: qty, price: '₹50', availability: 'In Stock' });
+      added.add(trimmed);
     }
+  });
 
-    // Check authorization
-    if (req.user.role === 'patient' && prescription.patient._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-    if (req.user.role === 'doctor' && prescription.doctor._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    res.json(prescription);
-  } catch (error) {
-    console.error('Get prescription error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+  return found;
+}
 
 module.exports = router;

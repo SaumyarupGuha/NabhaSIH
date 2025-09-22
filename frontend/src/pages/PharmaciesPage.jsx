@@ -6,6 +6,8 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { useCart } from '../context/CartContext';
 import { CartModal } from '../components/CartModal';
+
+import { PrescriptionUpload } from '../components/PrescriptionUpload';
 import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 
@@ -13,6 +15,8 @@ export default function PharmaciesPage() {
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [isPrescriptionUploadOpen, setIsPrescriptionUploadOpen] = useState(false);
   const { addToCart, setIsCartOpen, getCartCount } = useCart();
 
   const commonMedicines = [
@@ -27,7 +31,7 @@ export default function PharmaciesPage() {
   useEffect(() => {
     const fetchPharmacies = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/pharmacies');
+        const response = await fetch('https://nabhasih-1.onrender.com/api/pharmacies');
         const data = await response.json();
         if (data.success) {
           setPharmacies(data.data);
@@ -72,7 +76,11 @@ export default function PharmaciesPage() {
               <Input placeholder="Search medicines or pharmacy name..." className="pl-10" />
             </div>
           </div>
-          <Button className="w-full">
+
+          <Button 
+            className="w-full"
+            onClick={() => setIsPrescriptionUploadOpen(true)}
+          >
             <Pill className="mr-2 h-4 w-4" />
             Upload Prescription
           </Button>
@@ -279,6 +287,11 @@ export default function PharmaciesPage() {
       </div>
       
       <CartModal />
+
+      <PrescriptionUpload 
+        isOpen={isPrescriptionUploadOpen}
+        onClose={() => setIsPrescriptionUploadOpen(false)}
+      />
     </div>
   );
 }

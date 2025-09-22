@@ -59,6 +59,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: function() { return this.role === 'doctor'; }
   },
+  availableDays: {
+    type: [String],
+    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    required: function() { return this.role === 'doctor'; }
+  },
+  consultationFee: {
+    type: Number,
+    required: function() { return this.role === 'doctor'; }
+  },
   // Pharmacist specific fields
   pharmacyName: {
     type: String,
@@ -71,6 +80,12 @@ const userSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean,
     default: function() { return this.role === 'patient'; }
+  },
+  // Patient-Doctor relationship
+  assignedDoctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: function() { return this.role === 'patient'; }
   },
   avatar: String
 }, {

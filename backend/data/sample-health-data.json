@@ -1,0 +1,12 @@
+[
+  {"heartRate": 72, "temperature": 98.6, "oxygenSaturation": 98, "bloodPressure": {"systolic": 120, "diastolic": 80}},
+  {"heartRate": 75, "temperature": 99.1, "oxygenSaturation": 97, "bloodPressure": {"systolic": 125, "diastolic": 82}},
+  {"heartRate": 125, "temperature": 98.8, "oxygenSaturation": 96, "bloodPressure": {"systolic": 130, "diastolic": 85}},
+  {"heartRate": 78, "temperature": 101.2, "oxygenSaturation": 95, "bloodPressure": {"systolic": 118, "diastolic": 78}},
+  {"heartRate": 82, "temperature": 98.4, "oxygenSaturation": 88, "bloodPressure": {"systolic": 122, "diastolic": 81}},
+  {"heartRate": 135, "temperature": 102.5, "oxygenSaturation": 85, "bloodPressure": {"systolic": 160, "diastolic": 95}},
+  {"heartRate": 70, "temperature": 98.7, "oxygenSaturation": 99, "bloodPressure": {"systolic": 115, "diastolic": 75}},
+  {"heartRate": 88, "temperature": 99.8, "oxygenSaturation": 94, "bloodPressure": {"systolic": 128, "diastolic": 84}},
+  {"heartRate": 92, "temperature": 98.9, "oxygenSaturation": 97, "bloodPressure": {"systolic": 124, "diastolic": 79}},
+  {"heartRate": 140, "temperature": 103.1, "oxygenSaturation": 82, "bloodPressure": {"systolic": 170, "diastolic": 100}}
+]

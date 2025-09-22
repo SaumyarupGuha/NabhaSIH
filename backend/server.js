@@ -13,6 +13,8 @@ const prescriptionRoutes = require('./routes/prescriptions');
 const pharmacyRoutes = require('./routes/pharmacies');
 const orderRoutes = require('./routes/orders');
 const stockRoutes = require('./routes/stock');
+const healthDataRoutes = require('./routes/healthData');
+const testAlertRoutes = require('./routes/testAlert');
 
 dotenv.config();
 
@@ -21,6 +23,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: "http://localhost:5173",
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -29,17 +32,43 @@ const PORT = process.env.PORT || 5000;
 app.set('io', io);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: false
+}));
+
+// Handle preflight requests
+app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nabha-health', {
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.log('MongoDB connection error:', err));
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 Client connected:', socket.id);
+  
+  // Join doctor room for real-time alerts
+  socket.on('joinDoctorRoom', (doctorId) => {
+    socket.join(`doctor_${doctorId}`);
+    console.log(`🏠 Doctor ${doctorId} joined room: doctor_${doctorId}`);
+    console.log(`📊 Total rooms:`, socket.rooms);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+  });
+});
+
+console.log('📡 Socket.io server initialized');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -47,13 +76,19 @@ app.use('/api/users', userRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
+
 app.use('/api/orders', orderRoutes);
 app.use('/api/stock', stockRoutes);
+
+app.use('/api/health-data', healthDataRoutes);
+app.use('/api/test-alert', testAlertRoutes);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ message: 'Nabha Health API is running', status: 'OK' });
 });
+
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -72,8 +107,28 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
+
+// Redirect routes without /api prefix
+app.use('/auth', (req, res) => {
+  res.redirect(308, `/api/auth${req.path}`);
+});
+app.use('/users', (req, res) => {
+  res.redirect(308, `/api/users${req.path}`);
+});
+app.use('/appointments', (req, res) => {
+  res.redirect(308, `/api/appointments${req.path}`);
+});
+app.use('/prescriptions', (req, res) => {
+  res.redirect(308, `/api/prescriptions${req.path}`);
+});
+app.use('/pharmacies', (req, res) => {
+  res.redirect(308, `/api/pharmacies${req.path}`);
+});
+app.use('/health-data', (req, res) => {
+  res.redirect(308, `/api/health-data${req.path}`);
 });
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('Socket.io enabled for real-time notifications');
 });
