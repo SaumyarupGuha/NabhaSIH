@@ -15,7 +15,7 @@ export const FloatingAlerts = ({ doctorId }) => {
 
     console.log('🔌 FloatingAlerts: Connecting for doctor:', doctorId);
     
-    const newSocket = io('http://localhost:5000', {
+    const newSocket = io('https://nabhasih-1.onrender.com', {
       transports: ['websocket', 'polling']
     });
     setSocket(newSocket);

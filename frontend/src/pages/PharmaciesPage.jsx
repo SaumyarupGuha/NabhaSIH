@@ -31,7 +31,7 @@ export default function PharmaciesPage() {
   useEffect(() => {
     const fetchPharmacies = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/pharmacies');
+        const response = await fetch('https://nabhasih-1.onrender.com/api/pharmacies');
         const data = await response.json();
         if (data.success) {
           setPharmacies(data.data);

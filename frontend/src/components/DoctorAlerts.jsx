@@ -14,7 +14,7 @@ export const DoctorAlerts = ({ doctorId }) => {
     console.log('🔌 Initializing socket connection for doctor:', doctorId);
     
     // Initialize socket connection
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io('https://nabhasih-1.onrender.com');
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -54,7 +54,7 @@ export const DoctorAlerts = ({ doctorId }) => {
     try {
       console.log('📥 Fetching existing alerts for doctor:', doctorId);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/health-data/alerts/doctor', {
+      const response = await fetch('https://nabhasih-1.onrender.com/api/health-data/alerts/doctor', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -71,7 +71,7 @@ export const DoctorAlerts = ({ doctorId }) => {
   const acknowledgeAlert = async (alertId) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5000/api/health-data/alerts/${alertId}/acknowledge`, {
+      await fetch(`https://nabhasih-1.onrender.com/api/health-data/alerts/${alertId}/acknowledge`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
