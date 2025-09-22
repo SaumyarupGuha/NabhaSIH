@@ -20,7 +20,10 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.NODE_ENV === 'production' 
+      ? process.env.FRONTEND_URL 
+      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4173'],
+    credentials: true,
     methods: ["GET", "POST"]
   }
 });
@@ -30,7 +33,14 @@ const PORT = process.env.PORT || 5000;
 app.set('io', io);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
