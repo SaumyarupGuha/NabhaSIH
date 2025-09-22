@@ -44,7 +44,8 @@ export const CartModal = () => {
         deliveryType: 'delivery',
         deliveryAddress: orderData.address,
         coordinates: { lat: 30.7046, lng: 76.1512 },
-        orderedBy: 'patient_id_here'
+        orderedBy: '68ccf820249ad6de413eab2f', // Valid patient ObjectId
+        assignedPharmacy: '68ccf820249ad6de413eab2e' // Explicitly assign to your pharmacy
       };
 
       const response = await fetch('http://localhost:5000/api/orders', {

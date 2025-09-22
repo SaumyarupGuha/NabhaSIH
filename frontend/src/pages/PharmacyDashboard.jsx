@@ -21,7 +21,7 @@ export default function PharmacyDashboard() {
     manufacturer: ''
   });
 
-  const pharmacyId = '674a1b2c3d4e5f6789012345'; // Mock pharmacy ID
+  const pharmacyId = '674a1b2c3d4e5f6789012345'; // King Pharmacy ID (the one with stock)
 
   useEffect(() => {
     // Initialize Socket.IO
@@ -49,13 +49,136 @@ export default function PharmacyDashboard() {
     try {
       const response = await fetch(`http://localhost:5000/api/orders/pharmacy/${pharmacyId}`);
       const data = await response.json();
-      if (data.success) {
+      console.log('Orders API response:', data);
+      if (data.success && data.data && data.data.length > 0) {
         setOrders(data.data);
+      } else {
+        console.log('No orders found, using dummy orders for testing');
+        setDummyOrders();
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      setDummyOrders();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const setDummyOrders = () => {
+    setOrders([
+      {
+        _id: 'order1',
+        orderNumber: 'ORD001',
+        orderType: 'patient',
+        status: 'pending',
+        priority: 'medium',
+        items: [
+          { medicineName: 'Paracetamol 500mg', quantity: 2, unitPrice: 2.50 }
+        ],
+        customerInfo: {
+          name: 'John Doe',
+          phone: '+919876543210',
+          address: '123 Main St, City'
+        },
+        totalAmount: 5.00,
+        createdAt: new Date(),
+        deliveryType: 'delivery'
+      }
+    ]);
+  };
+
+  const checkAllOrders = async () => {
+    try {
+      console.log('Checking all orders...');
+      const response = await fetch('http://localhost:5000/api/orders');
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        console.log('API endpoint /api/orders not found or error');
+        console.log('Let\'s check what orders exist by looking at the pharmacy-specific endpoint');
+        
+        // Try to get orders from the pharmacy endpoint and see what we get
+        const pharmacyResponse = await fetch(`http://localhost:5000/api/orders/pharmacy/${pharmacyId}`);
+        const pharmacyData = await pharmacyResponse.json();
+        console.log('Pharmacy orders response:', pharmacyData);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('All orders in system:', data);
+      console.log('Current pharmacy ID:', pharmacyId);
+      
+      if (data.success && data.data) {
+        const ordersForThisPharmacy = data.data.filter(order => 
+          order.assignedPharmacy === pharmacyId || 
+          order.assignedPharmacy?._id === pharmacyId
+        );
+        console.log('Orders for this pharmacy:', ordersForThisPharmacy);
+        
+        if (ordersForThisPharmacy.length > 0) {
+          setOrders(ordersForThisPharmacy);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking all orders:', error);
+      console.log('The /api/orders endpoint probably doesn\'t exist. Let\'s check the pharmacy endpoint instead.');
+      
+      // Fallback: check the pharmacy endpoint
+      try {
+        const pharmacyResponse = await fetch(`http://localhost:5000/api/orders/pharmacy/${pharmacyId}`);
+        const pharmacyData = await pharmacyResponse.json();
+        console.log('Pharmacy orders response:', pharmacyData);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
+    }
+  };
+
+  const testOrderCreation = async () => {
+    try {
+      console.log('Testing order creation...');
+      const testOrder = {
+        orderType: 'patient',
+        items: [{
+          medicineName: 'Paracetamol 500mg',
+          quantity: 1,
+          unitPrice: 2.50,
+          totalPrice: 2.50
+        }],
+        customerInfo: {
+          name: 'Test Customer',
+          phone: '+919999999999',
+          address: 'Test Address'
+        },
+        deliveryType: 'delivery',
+        deliveryAddress: 'Test Address',
+        coordinates: { lat: 30.7046, lng: 76.1512 },
+        orderedBy: '68ccf820249ad6de413eab2f',
+        assignedPharmacy: pharmacyId
+      };
+      
+      console.log('Sending test order:', testOrder);
+      
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testOrder)
+      });
+      
+      const result = await response.json();
+      console.log('Test order result:', result);
+      
+      if (result.success) {
+        console.log('Test order created successfully!');
+        console.log('Order assigned to pharmacy:', result.assignedPharmacy);
+        console.log('Our pharmacy ID:', pharmacyId);
+        console.log('Do they match?', result.assignedPharmacy._id === pharmacyId || result.assignedPharmacy === pharmacyId);
+        fetchOrders();
+      } else {
+        console.log('Test order failed:', result.message);
+      }
+    } catch (error) {
+      console.error('Test order error:', error);
     }
   };
 
@@ -292,6 +415,18 @@ export default function PharmacyDashboard() {
             <TabsTrigger value="orders">Orders ({orders.length})</TabsTrigger>
             <TabsTrigger value="stock">Stock Management</TabsTrigger>
           </TabsList>
+          
+          <div className="flex gap-2 mb-4">
+            <Button onClick={fetchOrders} variant="outline">
+              Refresh Orders
+            </Button>
+            <Button onClick={checkAllOrders} variant="outline">
+              Check All Orders
+            </Button>
+            <Button onClick={testOrderCreation} variant="outline">
+              Test Order Creation
+            </Button>
+          </div>
 
           <TabsContent value="orders" className="space-y-6">
             <div className="grid gap-6">
