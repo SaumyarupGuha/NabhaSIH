@@ -8,6 +8,7 @@ import { useCart } from '../context/CartContext';
 import { CartModal } from '../components/CartModal';
 
 import { PrescriptionUpload } from '../components/PrescriptionUpload';
+import { MedicineSearch } from '../components/MedicineSearch';
 import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 
@@ -71,10 +72,7 @@ export default function PharmaciesPage() {
 
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <div className="md:col-span-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search medicines or pharmacy name..." className="pl-10" />
-            </div>
+            <MedicineSearch />
           </div>
 
           <Button 
@@ -227,36 +225,37 @@ export default function PharmaciesPage() {
                 <CardDescription>Order common medicines instantly</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {commonMedicines.map((medicine, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">{medicine.name}</h4>
-                        <p className="text-xs text-muted-foreground">{medicine.price}</p>
+
+                  <div className="space-y-3">
+                    {commonMedicines.map((medicine, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm">{medicine.name}</h4>
+                          <p className="text-xs text-muted-foreground">{medicine.price}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={
+                              medicine.availability === "In Stock"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-orange-100 text-orange-800"
+                            }
+                          >
+                            {medicine.availability}
+                          </Badge>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-xs"
+                            onClick={() => addToCart(medicine)}
+                          >
+                            Add
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={
-                            medicine.availability === "In Stock"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-orange-100 text-orange-800"
-                          }
-                        >
-                          {medicine.availability}
-                        </Badge>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="text-xs"
-                          onClick={() => addToCart(medicine)}
-                        >
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
                 <Button 
                   className="w-full" 
                   onClick={() => setIsCartOpen(true)}

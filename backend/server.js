@@ -13,6 +13,7 @@ const prescriptionRoutes = require('./routes/prescriptions');
 const pharmacyRoutes = require('./routes/pharmacies');
 const healthDataRoutes = require('./routes/healthData');
 const testAlertRoutes = require('./routes/testAlert');
+const medicineRoutes = require('./routes/medicines');
 
 dotenv.config();
 
@@ -76,6 +77,7 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
 app.use('/api/health-data', healthDataRoutes);
 app.use('/api/test-alert', testAlertRoutes);
+app.use('/api/medicines', medicineRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
