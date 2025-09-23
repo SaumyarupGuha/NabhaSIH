@@ -6,6 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Textarea } from '../components/ui/Textarea';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { DoctorAlerts } from '../components/DoctorAlerts';
 import { FloatingAlerts } from '../components/FloatingAlerts';
 import {
@@ -15,11 +16,14 @@ import {
 
 export default function HospitalDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Get current user from localStorage or context
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUser(user);
+    // Simulate loading time
+    setTimeout(() => setLoading(false), 1000);
   }, []);
   const stats = [
     { title: "Today's Patients", value: "42", change: "+8%", icon: Users },
@@ -99,6 +103,27 @@ export default function HospitalDashboard() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSkeleton className="h-8 w-64 mb-2" />
+          <LoadingSkeleton className="h-4 w-96 mb-8" />
+          
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <LoadingSkeleton key={i} type="card" className="h-24" />
+            ))}
+          </div>
+          
+          <LoadingSkeleton className="h-10 w-full mb-6" />
+          <LoadingSkeleton type="card" className="h-96" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

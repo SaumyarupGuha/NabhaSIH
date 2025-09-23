@@ -13,6 +13,7 @@ const prescriptionRoutes = require('./routes/prescriptions');
 const pharmacyRoutes = require('./routes/pharmacies');
 const healthDataRoutes = require('./routes/healthData');
 const testAlertRoutes = require('./routes/testAlert');
+const medicineRoutes = require('./routes/medicines');
 const orderRoutes = require('./routes/orders');
 const stockRoutes = require('./routes/stock');
 const handleOrderEvents = require('./socket/orderEvents');
@@ -49,10 +50,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.log('MongoDB connection error:', err));
 
@@ -77,16 +75,15 @@ handleOrderEvents(io);
 
   console.log('📡 Socket.io server initialized');
 
-  // Routes
-  app.use('/api/auth', authRoutes);
-  app.use('/api/users', userRoutes);
-  app.use('/api/appointments', appointmentRoutes);
-  app.use('/api/prescriptions', prescriptionRoutes);
-  app.use('/api/pharmacies', pharmacyRoutes);
-  app.use('/api/health-data', healthDataRoutes);
-  app.use('/api/test-alert', testAlertRoutes);
-  app.use('/api/orders', orderRoutes);
-  app.use('/api/stock', stockRoutes);
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/pharmacies', pharmacyRoutes);
+app.use('/api/health-data', healthDataRoutes);
+app.use('/api/test-alert', testAlertRoutes);
+app.use('/api/medicines', medicineRoutes);
 
   // Health check route
   app.get('/api/health', (req, res) => {

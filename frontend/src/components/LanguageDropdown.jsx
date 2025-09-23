@@ -12,24 +12,7 @@ export const LanguageDropdown = () => {
   const languages = [
     { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
     { code: 'hi', name: 'Hindi', flag: '🇮🇳', native: 'हिंदी' },
-    { code: 'pa', name: 'Punjabi', flag: '🇮🇳', native: 'ਪੰਜਾਬੀ' },
-    { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
-    { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
-    { code: 'de', name: 'German', flag: '🇩🇪', native: 'Deutsch' },
-    { code: 'zh', name: 'Chinese', flag: '🇨🇳', native: '中文' },
-    { code: 'ja', name: 'Japanese', flag: '🇯🇵', native: '日本語' },
-    { code: 'ko', name: 'Korean', flag: '🇰🇷', native: '한국어' },
-    { code: 'ar', name: 'Arabic', flag: '🇸🇦', native: 'العربية' },
-    { code: 'ru', name: 'Russian', flag: '🇷🇺', native: 'Русский' },
-    { code: 'pt', name: 'Portuguese', flag: '🇵🇹', native: 'Português' },
-    { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
-    { code: 'nl', name: 'Dutch', flag: '🇳🇱', native: 'Nederlands' },
-    { code: 'tr', name: 'Turkish', flag: '🇹🇷', native: 'Türkçe' },
-    { code: 'pl', name: 'Polish', flag: '🇵🇱', native: 'Polski' },
-    { code: 'sv', name: 'Swedish', flag: '🇸🇪', native: 'Svenska' },
-    { code: 'da', name: 'Danish', flag: '🇩🇰', native: 'Dansk' },
-    { code: 'no', name: 'Norwegian', flag: '🇳🇴', native: 'Norsk' },
-    { code: 'fi', name: 'Finnish', flag: '🇫🇮', native: 'Suomi' }
+    { code: 'pa', name: 'Punjabi', flag: '🇮🇳', native: 'ਪੰਜਾਬੀ' }
   ];
 
   const filteredLanguages = languages.filter(lang => 
@@ -39,34 +22,19 @@ export const LanguageDropdown = () => {
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
-  const translateContent = async (targetLang) => {
-    if (['en', 'hi', 'pa'].includes(targetLang)) {
-      // Use existing i18n for supported languages
-      i18n.changeLanguage(targetLang);
-      return;
-    }
-
+  const changeLanguage = (langCode) => {
     setIsTranslating(true);
-    try {
-      await translationService.translatePage(targetLang);
-    } catch (error) {
-      console.error('Translation error:', error);
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
-  const changeLanguage = async (langCode) => {
-    await translateContent(langCode);
+    i18n.changeLanguage(langCode);
     localStorage.setItem('selectedLanguage', langCode);
     setIsOpen(false);
     setSearchTerm('');
+    setTimeout(() => setIsTranslating(false), 300);
   };
 
   useEffect(() => {
     const savedLang = localStorage.getItem('selectedLanguage');
-    if (savedLang && !['en', 'hi', 'pa'].includes(savedLang)) {
-      translateContent(savedLang);
+    if (savedLang && ['en', 'hi', 'pa'].includes(savedLang)) {
+      i18n.changeLanguage(savedLang);
     }
   }, []);
 

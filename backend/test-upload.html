@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Cloudinary Upload</title>
+</head>
+<body>
+    <h2>Test Prescription Upload</h2>
+    
+    <div>
+        <h3>Step 1: Get Token</h3>
+        <form id="loginForm">
+            <input type="text" id="phone" placeholder="Phone number" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <select id="role" required>
+                <option value="">Select Role</option>
+                <option value="patient">Patient</option>
+                <option value="doctor">Doctor</option>
+                <option value="pharmacist">Pharmacist</option>
+            </select>
+            <button type="submit">Login & Get Token</button>
+        </form>
+        <div id="tokenResult"></div>
+    </div>
+
+    <div>
+        <h3>Step 2: Upload Image</h3>
+        <form id="uploadForm">
+            <input type="file" id="imageFile" accept="image/*" required>
+            <button type="submit">Test Upload</button>
+        </form>
+        <div id="uploadResult"></div>
+    </div>
+
+    <script>
+        let authToken = '';
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const phone = document.getElementById('phone').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contact: phone, password, role })
+                });
+
+                const result = await response.json();
+                
+                if (result.token) {
+                    authToken = result.token;
+                    document.getElementById('tokenResult').innerHTML = 
+                        `<p style="color: green;">✅ Login successful! Token: ${authToken.substring(0, 20)}...</p>`;
+                } else {
+                    document.getElementById('tokenResult').innerHTML = 
+                        `<p style="color: red;">❌ Login failed: ${result.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('tokenResult').innerHTML = 
+                    `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!authToken) {
+                alert('Please login first to get a token');
+                return;
+            }
+
+            const fileInput = document.getElementById('imageFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select an image file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('http://localhost:5000/api/prescriptions/test-upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('uploadResult').innerHTML = 
+                        `<p style="color: green;">✅ Upload successful!</p>
+                         <p>URL: <a href="${result.data.url}" target="_blank">${result.data.url}</a></p>
+                         <img src="${result.data.url}" style="max-width: 300px; margin-top: 10px;">`;
+                } else {
+                    document.getElementById('uploadResult').innerHTML = 
+                        `<p style="color: red;">❌ Upload failed: ${result.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('uploadResult').innerHTML = 
+                    `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

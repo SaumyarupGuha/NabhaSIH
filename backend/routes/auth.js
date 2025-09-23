@@ -107,9 +107,10 @@ router.post('/login', [
   body('role').isIn(['patient', 'doctor', 'pharmacist', 'admin']).withMessage('Role is required')
 ], async (req, res) => {
   try {
+    console.log('Login attempt:', req.body);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ message: errors.array()[0].msg });
     }
 
     const { contact, password, role } = req.body;
@@ -128,8 +129,11 @@ router.post('/login', [
     });
 
     if (!user) {
+      console.log('User not found for:', { contact, role });
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+    
+    console.log('User found:', user.email || user.phone);
 
     // Check password
     const isMatch = await user.comparePassword(password);

@@ -5,6 +5,7 @@ import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { appointmentAPI, prescriptionAPI } from '../lib/api';
 import { Calendar, Clock, User, FileText, Pill, Phone, Plus, Eye } from 'lucide-react';
 
@@ -113,8 +114,34 @@ export default function PatientDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">{t('common:loading')}</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSkeleton className="h-8 w-64 mb-2" />
+          <LoadingSkeleton className="h-4 w-96 mb-8" />
+          
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {[1, 2, 3].map((i) => (
+              <LoadingSkeleton key={i} type="card" className="h-32" />
+            ))}
+          </div>
+          
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div>
+              <LoadingSkeleton className="h-6 w-48 mb-6" />
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <LoadingSkeleton key={i} type="card" className="h-40" />
+                ))}
+              </div>
+            </div>
+            <div>
+              <LoadingSkeleton className="h-6 w-48 mb-6" />
+              <div className="space-y-4">
+                {[1, 2].map((i) => (
+                  <LoadingSkeleton key={i} type="card" className="h-48" />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
