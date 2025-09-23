@@ -1,136 +1,140 @@
 const express = require('express');
-const router = express.Router();
 const Order = require('../models/Order');
-const { findOptimalPharmacy, updateStock } = require('../services/pharmacyMatcher');
+const { auth } = require('../middleware/auth');
+const router = express.Router();
+
+// Get orders for pharmacy dashboard
+router.get('/', auth, async (req, res) => {
+  try {
+    let query = {};
+    
+    if (req.user.role === 'pharmacist') {
+      // Return pending orders + orders accepted by current pharmacy
+      query = {
+        $or: [
+          { status: 'pending' },
+          { acceptedBy: req.user.id }
+        ]
+      };
+    } else if (req.user.role === 'patient') {
+      // Return orders placed by current patient
+      query = { patientId: req.user.id };
+    } else {
+      // For demo purposes, return all pending orders
+      query = { status: 'pending' };
+    }
+
+    const orders = await Order.find(query)
+      .populate('patientId', 'name phone')
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // Create new order
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { orderType, items, customerInfo, deliveryType, deliveryAddress, coordinates } = req.body;
-    
-    const orderNumber = 'ORD' + Date.now();
-    
-    // Find optimal pharmacy
-    const optimalMatch = await findOptimalPharmacy(items, coordinates, orderType);
-    
-    if (!optimalMatch) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'No pharmacy available with required medicines' 
-      });
-    }
-
-    const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    const { medicines, deliveryAddress, totalAmount, pharmacyId } = req.body;
 
     const order = new Order({
-      orderNumber,
-      orderType,
-      orderedBy: req.body.orderedBy,
-      assignedPharmacy: optimalMatch.pharmacy._id,
-      items,
-      totalAmount,
-      deliveryType,
+      patientId: req.user.id,
+      medicines,
       deliveryAddress,
-      customerInfo,
-      coordinates,
-      status: 'assigned',
-      estimatedTime: new Date(Date.now() + 30 * 60000) // 30 minutes
+      totalAmount,
+      pharmacyId,
+      status: 'pending'
     });
 
     await order.save();
-
-    // Emit to pharmacy via Socket.IO
-    req.app.get('io').to(`pharmacy_${optimalMatch.pharmacy._id}`).emit('newOrder', {
-      order,
-      distance: optimalMatch.distance,
-      estimatedTime: 30
-    });
-
-    res.json({ 
-      success: true, 
-      data: order,
-      assignedPharmacy: optimalMatch.pharmacy,
-      estimatedDistance: optimalMatch.distance
-    });
-
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Get orders for pharmacy
-router.get('/pharmacy/:pharmacyId', async (req, res) => {
-  try {
-    const orders = await Order.find({ 
-      assignedPharmacy: req.params.pharmacyId 
-    }).sort({ createdAt: -1 });
     
-    res.json({ success: true, data: orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+    const populatedOrder = await Order.findById(order._id)
+      .populate('patientId', 'name phone');
 
-// Accept/Reject order
-router.patch('/:orderId/status', async (req, res) => {
-  try {
-    const { status, rejectionReason, estimatedTime } = req.body;
-    
-    const order = await Order.findById(req.params.orderId);
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
+    // Broadcast new order to all pharmacies
+    req.io.emit('newOrder', populatedOrder);
 
-    if (status === 'accepted') {
-      // Update stock
-      const stockUpdated = await updateStock(order.assignedPharmacy, order.items);
-      if (!stockUpdated) {
-        return res.status(400).json({ success: false, message: 'Failed to update stock' });
-      }
-      
-      order.status = 'accepted';
-      order.estimatedTime = estimatedTime || new Date(Date.now() + 45 * 60000);
-    } else if (status === 'rejected') {
-      order.status = 'rejected';
-      order.rejectionReason = rejectionReason;
-    }
-
-    await order.save();
-
-    // Notify customer
-    req.app.get('io').to(`order_${order._id}`).emit('orderStatusUpdate', {
-      orderId: order._id,
-      status: order.status,
-      estimatedTime: order.estimatedTime,
-      rejectionReason: order.rejectionReason
+    res.status(201).json({
+      success: true,
+      message: 'Order placed successfully',
+      order: populatedOrder
     });
-
-    res.json({ success: true, data: order });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Update order status (preparing, ready, delivered)
-router.patch('/:orderId/progress', async (req, res) => {
+// Update order status
+router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
+    const validStatuses = ['pending', 'accepted', 'preparing', 'ready', 'delivered', 'cancelled'];
     
-    const order = await Order.findByIdAndUpdate(
-      req.params.orderId,
-      { status },
-      { new: true }
-    );
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
 
-    // Notify customer
-    req.app.get('io').to(`order_${order._id}`).emit('orderStatusUpdate', {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { status, deliveredAt: status === 'delivered' ? new Date() : undefined },
+      { new: true }
+    ).populate('patientId', 'name phone');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Broadcast status update
+    req.io.emit('orderStatusUpdated', {
       orderId: order._id,
-      status: order.status
+      status: order.status,
+      updatedBy: req.user.id
     });
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, order });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Accept order (atomic claiming)
+router.post('/:id/accept', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'pharmacist') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Atomic update: only accept if still pending
+    const order = await Order.findOneAndUpdate(
+      { 
+        _id: req.params.id, 
+        status: 'pending',
+        acceptedBy: null 
+      },
+      { 
+        status: 'accepted',
+        acceptedBy: req.user.id,
+        acceptedAt: new Date()
+      },
+      { new: true }
+    ).populate('patientId', 'name phone');
+
+    if (!order) {
+      return res.status(409).json({ message: 'Order already taken or not found' });
+    }
+
+    // Broadcast to all pharmacies
+    req.io.emit('orderAccepted', {
+      orderId: order._id,
+      acceptedBy: req.user.id,
+      pharmacyName: req.user.name
+    });
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 

@@ -12,21 +12,10 @@ const generateToken = (userId) => {
 };
 
 // Register
-router.post('/register', [
-  body('firstName').notEmpty().withMessage('First name is required'),
-  body('lastName').notEmpty().withMessage('Last name is required'),
-  body('phone').isMobilePhone().withMessage('Valid phone number is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').isIn(['patient', 'doctor', 'pharmacist']).withMessage('Invalid role'),
-  body('village').notEmpty().withMessage('Village is required')
-], async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, pharmacyName, pharmacyAddress } = req.body;
+    console.log('Registration data:', req.body);
+    const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, consultationFee, availableDays, selectedPharmacy } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ 
@@ -35,6 +24,30 @@ router.post('/register', [
     
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists with this phone or email' });
+    }
+
+    // Additional validation for pharmacist role
+    if (role === 'pharmacist') {
+      if (!selectedPharmacy) {
+        return res.status(400).json({ message: 'Pharmacy selection is required for pharmacist registration' });
+      }
+      
+      if (!license) {
+        return res.status(400).json({ message: 'Pharmacy license is required for pharmacist registration' });
+      }
+      
+      // Check if pharmacy already has a pharmacist
+      const existingPharmacist = await User.findOne({ 
+        role: 'pharmacist', 
+        selectedPharmacy: selectedPharmacy,
+        isVerified: true 
+      });
+      
+      if (existingPharmacist) {
+        return res.status(400).json({ 
+          message: 'This pharmacy already has a registered pharmacist. Only one pharmacist per pharmacy is allowed.' 
+        });
+      }
     }
 
     // Create user
@@ -55,9 +68,12 @@ router.post('/register', [
       userData.license = license;
       userData.specialization = specialization;
       userData.hospital = hospital;
+      userData.consultationFee = consultationFee;
+      userData.availableDays = availableDays || [];
     } else if (role === 'pharmacist') {
-      userData.pharmacyName = pharmacyName;
-      userData.pharmacyAddress = pharmacyAddress;
+      userData.selectedPharmacy = selectedPharmacy;
+      userData.license = license;
+      userData.isVerified = false; // Pharmacists need admin approval
     }
 
     const user = new User(userData);

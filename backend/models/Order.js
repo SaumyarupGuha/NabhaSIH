@@ -1,30 +1,15 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-  orderNumber: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  orderType: {
-    type: String,
-    enum: ['patient', 'hospital'],
+  patientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true
   },
-  orderedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    refPath: 'orderType',
-    required: true
-  },
-  assignedPharmacy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Pharmacy'
-  },
-  items: [{
-    medicineName: String,
-    quantity: Number,
-    unitPrice: Number,
-    totalPrice: Number
+  medicines: [{
+    name: { type: String, required: true },
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true }
   }],
   totalAmount: {
     type: Number,
@@ -32,36 +17,36 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'assigned', 'accepted', 'rejected', 'preparing', 'ready', 'delivered'],
+    enum: ['pending', 'accepted', 'preparing', 'ready', 'delivered', 'cancelled'],
     default: 'pending'
   },
-  deliveryType: {
-    type: String,
-    enum: ['pickup', 'delivery'],
-    required: true
+  acceptedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  acceptedAt: {
+    type: Date,
+    default: null
   },
   deliveryAddress: {
     type: String,
-    required: function() { return this.deliveryType === 'delivery'; }
+    required: true
   },
-  customerInfo: {
-    name: String,
-    phone: String,
-    address: String
-  },
-  priority: {
+  orderNumber: {
     type: String,
-    enum: ['low', 'medium', 'high', 'emergency'],
-    default: 'medium'
+    unique: true,
+    default: function() {
+      return 'ORD' + Date.now() + Math.random().toString(36).substr(2, 5).toUpperCase();
+    }
   },
-  estimatedTime: Date,
-  rejectionReason: String,
-  coordinates: {
-    lat: Number,
-    lng: Number
-  }
+  prescriptionUrl: String,
+  notes: String
 }, {
   timestamps: true
 });
+
+// Index for efficient querying
+orderSchema.index({ status: 1, acceptedBy: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);
