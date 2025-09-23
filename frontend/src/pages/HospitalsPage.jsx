@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { MapPin, Phone, Stethoscope, Ambulance, Building2, Star } from 'lucide-react';
 
 export default function HospitalsPage() {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const hospitals = [
     {
       id: 1,
@@ -44,15 +54,32 @@ export default function HospitalsPage() {
     { name: "Women Helpline", number: "1091", description: "Women safety helpline" },
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSkeleton />
+          <div className="mt-8">
+            <LoadingSkeleton type="card" />
+          </div>
+          <div className="mt-8">
+            <LoadingSkeleton type="list" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Hospitals</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('hospitals.title', 'Hospitals')}</h1>
           <p className="text-muted-foreground">
-            Healthcare facilities and emergency services in Nabha and surrounding areas
+            {t('hospitals.subtitle', 'Healthcare facilities and emergency services in Nabha and surrounding areas')}
           </p>
         </div>
 
@@ -60,9 +87,9 @@ export default function HospitalsPage() {
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
               <Ambulance className="h-5 w-5" />
-              Emergency Services
+              {t('hospitals.emergencyServices', 'Emergency Services')}
             </CardTitle>
-            <CardDescription>Important emergency contact numbers</CardDescription>
+            <CardDescription>{t('hospitals.emergencyDescription', 'Important emergency contact numbers')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -79,9 +106,9 @@ export default function HospitalsPage() {
 
         <div className="space-y-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Healthcare Facilities</h2>
+            <h2 className="text-2xl font-semibold">{t('hospitals.healthcareFacilities', 'Healthcare Facilities')}</h2>
             <Badge variant="secondary" className="bg-green-100 text-green-800">
-              {hospitals.length} facilities available
+              {hospitals.length} {t('hospitals.facilitiesAvailable', 'facilities available')}
             </Badge>
           </div>
 

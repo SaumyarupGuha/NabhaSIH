@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
@@ -6,10 +7,12 @@ import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Textarea } from '../components/ui/Textarea';
 import { Badge } from '../components/ui/Badge';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { appointmentAPI } from '../lib/api';
 import { Calendar, User, Video, MapPin, Star, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ConsultationsPage() {
+  const { t } = useTranslation();
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
@@ -279,8 +282,14 @@ export default function ConsultationsPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading doctors...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSkeleton />
+          <div className="mt-8">
+            <LoadingSkeleton type="card" />
+          </div>
+          <div className="mt-8">
+            <LoadingSkeleton type="list" />
+          </div>
         </div>
       </div>
     );

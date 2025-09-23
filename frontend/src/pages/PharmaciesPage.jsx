@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
@@ -6,13 +7,14 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { useCart } from '../context/CartContext';
 import { CartModal } from '../components/CartModal';
-
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { PrescriptionUpload } from '../components/PrescriptionUpload';
 import { MedicineSearch } from '../components/MedicineSearch';
 import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 
 export default function PharmaciesPage() {
+  const { t } = useTranslation();
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,8 +53,14 @@ export default function PharmaciesPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading pharmacies...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSkeleton />
+          <div className="mt-8">
+            <LoadingSkeleton type="card" />
+          </div>
+          <div className="mt-8">
+            <LoadingSkeleton type="list" />
+          </div>
         </div>
       </div>
     );
@@ -64,9 +72,9 @@ export default function PharmaciesPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Pharmacies</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('pharmacy.title')}</h1>
           <p className="text-muted-foreground">
-            Find local pharmacies in Nabha and surrounding areas for medicine delivery
+            {t('pharmacy.subtitle')}
           </p>
         </div>
 
@@ -80,20 +88,20 @@ export default function PharmaciesPage() {
             onClick={() => setIsPrescriptionUploadOpen(true)}
           >
             <Pill className="mr-2 h-4 w-4" />
-            Upload Prescription
+            {t('pharmacy.uploadPrescription')}
           </Button>
           <Button variant="outline" className="w-full">
             <Phone className="mr-2 h-4 w-4" />
-            Emergency Order
+            {t('pharmacy.emergencyOrder')}
           </Button>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">Local Pharmacies</h2>
+              <h2 className="text-2xl font-semibold">{t('pharmacy.localPharmacies')}</h2>
               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                {pharmacies.length} pharmacies available
+                {pharmacies.length} {t('pharmacy.pharmaciesAvailable')}
               </Badge>
             </div>
 
@@ -221,8 +229,8 @@ export default function PharmaciesPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Quick Medicine Order</CardTitle>
-                <CardDescription>Order common medicines instantly</CardDescription>
+                <CardTitle>{t('pharmacy.quickMedicineOrder')}</CardTitle>
+                <CardDescription>{t('pharmacy.orderCommonMedicines')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
 
@@ -261,23 +269,23 @@ export default function PharmaciesPage() {
                   onClick={() => setIsCartOpen(true)}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  View Cart ({getCartCount()}) & Checkout
+                  {t('pharmacy.viewCart')} ({getCartCount()}) {t('pharmacy.checkout')}
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="border-destructive/20 bg-destructive/5">
               <CardHeader>
-                <CardTitle className="text-destructive">Emergency Medicine</CardTitle>
-                <CardDescription>24/7 emergency medicine delivery</CardDescription>
+                <CardTitle className="text-destructive">{t('pharmacy.emergencyMedicine')}</CardTitle>
+                <CardDescription>{t('pharmacy.emergencyDelivery')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Need urgent medicines? Call our emergency hotline for immediate assistance.
+                  {t('pharmacy.emergencyText')}
                 </p>
                 <Button variant="destructive" className="w-full">
                   <Phone className="mr-2 h-4 w-4" />
-                  Call Emergency: 108
+                  {t('pharmacy.callEmergency')}
                 </Button>
               </CardContent>
             </Card>
