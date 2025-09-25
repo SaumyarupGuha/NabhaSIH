@@ -13,6 +13,7 @@ const prescriptionRoutes = require('./routes/prescriptions');
 const pharmacyRoutes = require('./routes/pharmacies');
 const healthDataRoutes = require('./routes/healthData');
 const testAlertRoutes = require('./routes/testAlert');
+const videoCallRoutes = require('./routes/videoCalls');
 
 dotenv.config();
 
@@ -55,7 +56,30 @@ io.on('connection', (socket) => {
   socket.on('joinDoctorRoom', (doctorId) => {
     socket.join(`doctor_${doctorId}`);
     console.log(`🏠 Doctor ${doctorId} joined room: doctor_${doctorId}`);
-    console.log(`📊 Total rooms:`, socket.rooms);
+  });
+  
+  // Join patient room for video calls
+  socket.on('joinPatientRoom', (patientId) => {
+    socket.join(`patient_${patientId}`);
+    console.log(`🏠 Patient ${patientId} joined room: patient_${patientId}`);
+  });
+  
+  // Video call signaling
+  socket.on('joinVideoRoom', (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit('userJoined', socket.id);
+  });
+  
+  socket.on('offer', (data) => {
+    socket.to(data.roomId).emit('offer', data);
+  });
+  
+  socket.on('answer', (data) => {
+    socket.to(data.roomId).emit('answer', data);
+  });
+  
+  socket.on('iceCandidate', (data) => {
+    socket.to(data.roomId).emit('iceCandidate', data);
   });
   
   socket.on('disconnect', () => {
@@ -73,6 +97,7 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
 app.use('/api/health-data', healthDataRoutes);
 app.use('/api/test-alert', testAlertRoutes);
+app.use('/api/video-calls', videoCallRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

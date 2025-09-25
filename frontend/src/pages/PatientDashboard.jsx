@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import io from 'socket.io-client';
+import IncomingCallModal from '../components/IncomingCallModal';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { appointmentAPI, prescriptionAPI } from '../lib/api';
+import { appointmentAPI, prescriptionAPI, videoCallAPI } from '../lib/api';
 import { Calendar, Clock, User, FileText, Pill, Phone, Plus, Eye } from 'lucide-react';
 
 export default function PatientDashboard() {
@@ -13,6 +15,8 @@ export default function PatientDashboard() {
   const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [socket, setSocket] = useState(null);
   const { t } = useTranslation('patient');
   const navigate = useNavigate();
 
@@ -34,7 +38,61 @@ export default function PatientDashboard() {
     };
 
     fetchData();
+    
+    // Initialize socket for incoming calls
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.id || user._id) {
+      const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const newSocket = io(socketUrl);
+      setSocket(newSocket);
+      
+      const userId = user.id || user._id;
+      console.log('Patient joining room:', `patient_${userId}`);
+      
+      newSocket.on('connect', () => {
+        console.log('Patient socket connected');
+        newSocket.emit('joinPatientRoom', userId);
+      });
+      
+      newSocket.on('incomingCall', (callData) => {
+        console.log('Incoming call received:', callData);
+        setIncomingCall(callData);
+      });
+      
+      return () => {
+        newSocket.disconnect();
+      };
+    }
   }, []);
+  
+  const handleAcceptCall = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('Patient user data:', user);
+      console.log('Token:', localStorage.getItem('token'));
+      
+      const response = await videoCallAPI.respondToCall(incomingCall.callId, 'accept');
+      const data = response.data;
+      
+      if (data.success) {
+        localStorage.setItem('currentCallId', incomingCall.callId);
+        navigate(`/video-room/${data.roomId}`);
+      }
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      console.error('Error details:', error.response?.data);
+    }
+    setIncomingCall(null);
+  };
+  
+  const handleRejectCall = async () => {
+    try {
+      await videoCallAPI.respondToCall(incomingCall.callId, 'reject');
+    } catch (error) {
+      console.error('Error rejecting call:', error);
+    }
+    setIncomingCall(null);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -353,6 +411,13 @@ export default function PatientDashboard() {
       <AppointmentModal 
         isOpen={modalOpen} 
         onClose={() => setModalOpen(false)} 
+      />
+      
+      <IncomingCallModal
+        isOpen={!!incomingCall}
+        callData={incomingCall}
+        onAccept={handleAcceptCall}
+        onReject={handleRejectCall}
       />
     </div>
   );
