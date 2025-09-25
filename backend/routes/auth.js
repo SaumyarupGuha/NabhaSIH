@@ -26,7 +26,7 @@ router.post('/register', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, pharmacyName, pharmacyAddress } = req.body;
+    const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, availableDays, consultationFee, pharmacyName, pharmacyAddress } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ 
@@ -55,6 +55,8 @@ router.post('/register', [
       userData.license = license;
       userData.specialization = specialization;
       userData.hospital = hospital;
+      userData.availableDays = availableDays;
+      userData.consultationFee = consultationFee;
     } else if (role === 'pharmacist') {
       userData.pharmacyName = pharmacyName;
       userData.pharmacyAddress = pharmacyAddress;
