@@ -55,8 +55,8 @@ router.post('/register', [
       userData.license = license;
       userData.specialization = specialization;
       userData.hospital = hospital;
-      userData.availableDays = availableDays;
-      userData.consultationFee = consultationFee;
+      userData.availableDays = availableDays || [];
+      userData.consultationFee = consultationFee || 0;
     } else if (role === 'pharmacist') {
       userData.pharmacyName = pharmacyName;
       userData.pharmacyAddress = pharmacyAddress;
@@ -82,6 +82,13 @@ router.post('/register', [
     });
   } catch (error) {
     console.error('Registration error:', error);
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return res.status(400).json({ errors });
+    }
     res.status(500).json({ message: 'Server error during registration' });
   }
 });
