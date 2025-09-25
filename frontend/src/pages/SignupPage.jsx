@@ -72,8 +72,56 @@ export default function SignupPage() {
       return;
     }
 
+    // Validate role-specific required fields
+    if (formData.role === 'doctor') {
+      if (!formData.license || !formData.specialization || !formData.hospital || !formData.consultationFee || formData.availableDays.length === 0) {
+        setError('Please fill all required doctor fields');
+        return;
+      }
+    } else if (formData.role === 'pharmacist') {
+      if (!formData.pharmacyName || !formData.pharmacyAddress) {
+        setError('Please fill all required pharmacist fields');
+        return;
+      }
+    } else if (formData.role === 'patient') {
+      if (!formData.age || !formData.gender) {
+        setError('Please fill all required patient fields');
+        return;
+      }
+    }
+
+    // Prepare data for submission
+    const submitData = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      phone: formData.phone.trim(),
+      password: formData.password,
+      role: formData.role,
+      village: formData.village
+    };
+
+    // Add optional email if provided
+    if (formData.email.trim()) {
+      submitData.email = formData.email.trim();
+    }
+
+    // Add role-specific fields
+    if (formData.role === 'patient') {
+      submitData.age = parseInt(formData.age);
+      submitData.gender = formData.gender;
+    } else if (formData.role === 'doctor') {
+      submitData.license = formData.license.trim();
+      submitData.specialization = formData.specialization.trim();
+      submitData.hospital = formData.hospital.trim();
+      submitData.availableDays = formData.availableDays;
+      submitData.consultationFee = parseFloat(formData.consultationFee);
+    } else if (formData.role === 'pharmacist') {
+      submitData.pharmacyName = formData.pharmacyName.trim();
+      submitData.pharmacyAddress = formData.pharmacyAddress.trim();
+    }
+
     setLoading(true);
-    const result = await register(formData);
+    const result = await register(submitData);
     
     if (result.success) {
       navigate('/');
@@ -149,37 +197,39 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="age">Age / उम्र / ਉਮਰ</Label>
-                  <Input 
-                    id="age" 
-                    name="age"
-                    type="number" 
-                    placeholder="Enter age" 
-                    min="1" 
-                    max="120" 
-                    value={formData.age}
-                    onChange={handleChange}
-                    required 
-                  />
+              {(formData.role === 'patient' || formData.role === '') && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="age">Age / उम्र / ਉਮਰ {formData.role === 'patient' && '*'}</Label>
+                    <Input 
+                      id="age" 
+                      name="age"
+                      type="number" 
+                      placeholder="Enter age" 
+                      min="1" 
+                      max="120" 
+                      value={formData.age}
+                      onChange={handleChange}
+                      required={formData.role === 'patient'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender / लिंग / ਲਿੰਗ {formData.role === 'patient' && '*'}</Label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      required={formData.role === 'patient'}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">Select gender</option>
+                      <option value="male">Male / पुरुष / ਮਰਦ</option>
+                      <option value="female">Female / महिला / ਔਰਤ</option>
+                      <option value="other">Other / अन्य / ਹੋਰ</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender / लिंग / ਲਿੰਗ</Label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    required
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="">Select gender</option>
-                    <option value="male">Male / पुरुष / ਮਰਦ</option>
-                    <option value="female">Female / महिला / ਔਰਤ</option>
-                    <option value="other">Other / अन्य / ਹੋਰ</option>
-                  </select>
-                </div>
-              </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">

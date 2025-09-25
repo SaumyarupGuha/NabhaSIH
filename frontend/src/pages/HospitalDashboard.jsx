@@ -30,7 +30,10 @@ export default function HospitalDashboard() {
     
     // Initialize socket for video calls
     if (user.id || user._id) {
-      const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
+      // Remove /api suffix for socket connection
+      socketUrl = socketUrl.replace('/api', '');
+      console.log('Socket URL:', socketUrl);
       const newSocket = io(socketUrl);
       setSocket(newSocket);
       
@@ -59,11 +62,17 @@ export default function HospitalDashboard() {
   }, [navigate]);
   
   const startVideoCall = async () => {
-    if (!patientPhone.trim()) return;
+    if (!patientPhone.trim()) {
+      alert('Please enter a patient phone number');
+      return;
+    }
     
     setIsStartingCall(true);
+    console.log('Starting video call with patient:', patientPhone);
+    
     try {
-      const response = await videoCallAPI.startCall(patientPhone);
+      const response = await videoCallAPI.startCall(patientPhone.trim());
+      console.log('Video call response:', response);
       const data = response.data;
       
       if (data.success) {
@@ -75,7 +84,24 @@ export default function HospitalDashboard() {
       }
     } catch (error) {
       console.error('Error starting call:', error);
-      alert(error.response?.data?.message || 'Failed to start call');
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
+      let errorMessage = 'Failed to start call';
+      if (error.response?.status === 404) {
+        errorMessage = 'Video call service not available. Please check your connection.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
       setIsStartingCall(false);
     }
   };
