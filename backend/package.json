@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "description": "Backend for Nabha Health Telemedicine Platform",
   "main": "server.js",
- "scripts": {
-  "start": "node server.js",
-  "dev": "concurrently \"nodemon server.js\" \"npm run simulate:fast\"",
-  "seed": "node seedDoctors.js",
-  "simulate": "node scripts/healthDataSimulator.js",
-  "simulate:fast": "node scripts/healthDataSimulator.js --fast",
-  "test": "echo \"Error: no test specified\" && exit 1"
-}
-,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "concurrently \"nodemon server.js\" \"npm run simulate:fast\"",
+    "seed": "node seedDoctors.js",
+    "simulate": "node scripts/healthDataSimulator.js",
+    "simulate:fast": "node scripts/healthDataSimulator.js --fast",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "dependencies": {
     "@google-cloud/vision": "^5.3.3",
     "axios": "^1.12.2",
@@ -28,7 +27,8 @@
     "nodemailer": "^6.9.7",
     "sharp": "^0.34.4",
     "socket.io": "^4.8.1",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "^6.0.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

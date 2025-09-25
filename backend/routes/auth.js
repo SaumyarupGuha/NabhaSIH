@@ -127,6 +127,7 @@ router.post('/login', [
       message: 'Login successful',
       token,
       user: {
+        _id: user._id,
         id: user._id,
         name: user.fullName,
         email: user.email,
@@ -146,6 +147,7 @@ router.post('/login', [
 router.get('/me', auth, async (req, res) => {
   res.json({
     user: {
+      _id: req.user._id,
       id: req.user._id,
       name: req.user.fullName,
       email: req.user.email,
