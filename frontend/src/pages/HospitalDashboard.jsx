@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
+import { videoCallAPI } from '../lib/api';
+import io from 'socket.io-client';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -10,17 +13,72 @@ import { DoctorAlerts } from '../components/DoctorAlerts';
 import { FloatingAlerts } from '../components/FloatingAlerts';
 import {
   Users, Calendar, FileText, Pill, Clock, Phone, Stethoscope,
-  CheckCircle, Plus, Search, Eye, Edit
+  CheckCircle, Plus, Search, Eye, Edit, Video
 } from 'lucide-react';
 
 export default function HospitalDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [patientPhone, setPatientPhone] = useState('');
+  const [isStartingCall, setIsStartingCall] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Get current user from localStorage or context
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUser(user);
-  }, []);
+    
+    // Initialize socket for video calls
+    if (user.id || user._id) {
+      const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const newSocket = io(socketUrl);
+      setSocket(newSocket);
+      
+      const userId = user.id || user._id;
+      console.log('Doctor joining room:', `doctor_${userId}`);
+      
+      newSocket.on('connect', () => {
+        console.log('Doctor socket connected');
+        newSocket.emit('joinDoctorRoom', userId);
+      });
+      
+      newSocket.on('callResponse', (data) => {
+        if (data.response === 'accept') {
+          localStorage.setItem('currentCallId', data.callId);
+          navigate(`/video-room/${data.roomId}`);
+        } else {
+          alert('Patient declined the call');
+        }
+        setIsStartingCall(false);
+      });
+      
+      return () => {
+        newSocket.disconnect();
+      };
+    }
+  }, [navigate]);
+  
+  const startVideoCall = async () => {
+    if (!patientPhone.trim()) return;
+    
+    setIsStartingCall(true);
+    try {
+      const response = await videoCallAPI.startCall(patientPhone);
+      const data = response.data;
+      
+      if (data.success) {
+        localStorage.setItem('currentCallId', data.callId);
+        alert(`Call initiated to ${data.patient.name}. Waiting for patient to accept...`);
+      } else {
+        alert(data.message || 'Failed to start call');
+        setIsStartingCall(false);
+      }
+    } catch (error) {
+      console.error('Error starting call:', error);
+      alert(error.response?.data?.message || 'Failed to start call');
+      setIsStartingCall(false);
+    }
+  };
   const stats = [
     { title: "Today's Patients", value: "42", change: "+8%", icon: Users },
     { title: "Appointments", value: "28", change: "+12%", icon: Calendar },
@@ -130,9 +188,10 @@ export default function HospitalDashboard() {
         </div>
 
         <Tabs defaultValue="alerts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="alerts">Health Alerts</TabsTrigger>
             <TabsTrigger value="queue">Patient Queue</TabsTrigger>
+            <TabsTrigger value="video-call">Video Call</TabsTrigger>
             <TabsTrigger value="consultations">Consultations</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger> 
             <TabsTrigger value="records">Medical Records</TabsTrigger>
@@ -142,6 +201,33 @@ export default function HospitalDashboard() {
             {currentUser && currentUser._id && (
               <DoctorAlerts doctorId={currentUser._id} />
             )}
+          </TabsContent>
+
+          <TabsContent value="video-call">
+            <Card>
+              <CardHeader>
+                <CardTitle>Start Video Call</CardTitle>
+                <CardDescription>Enter patient's phone number to initiate a video consultation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="max-w-md">
+                  <label className="text-sm font-medium mb-2 block">Patient Phone Number</label>
+                  <Input
+                    placeholder="Enter patient's phone number"
+                    value={patientPhone}
+                    onChange={(e) => setPatientPhone(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  onClick={startVideoCall}
+                  disabled={!patientPhone || isStartingCall}
+                  className="w-full max-w-md"
+                >
+                  <Video className="mr-2 h-4 w-4" />
+                  {isStartingCall ? 'Starting Call...' : 'Start Video Call'}
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="queue">

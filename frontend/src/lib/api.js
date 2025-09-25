@@ -62,4 +62,10 @@ export const userAPI = {
   verifyUser: (id) => api.patch(`/users/${id}/verify`),
 };
 
+export const videoCallAPI = {
+  startCall: (patientPhone) => api.post('/video-calls/start', { patientPhone }),
+  respondToCall: (callId, response) => api.post('/video-calls/respond', { callId, response }),
+  endCall: (callId) => api.post('/video-calls/end', { callId }),
+};
+
 export default api;
