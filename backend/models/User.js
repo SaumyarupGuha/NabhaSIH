@@ -84,8 +84,7 @@ const userSchema = new mongoose.Schema({
   // Patient-Doctor relationship
   assignedDoctor: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: function() { return this.role === 'patient'; }
+    ref: 'User'
   },
   avatar: String
 }, {
