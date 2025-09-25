@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+// import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
@@ -14,7 +14,7 @@ import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 
 export default function PharmaciesPage() {
-  const { t } = useTranslation();
+  // const { t } = useTranslation();
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,27 +26,43 @@ export default function PharmaciesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const pharmaciesResponse = await fetch('http://localhost:5000/api/pharmacies');
-        const pharmaciesData = await pharmaciesResponse.json();
-        if (pharmaciesData.success) {
-          setPharmacies(pharmaciesData.data);
+        // Fetch pharmacies
+        try {
+          const pharmaciesResponse = await pharmacyAPI.getPharmacies();
+          if (pharmaciesResponse.data.success) {
+            setPharmacies(pharmaciesResponse.data.data);
+          }
+        } catch (error) {
+          console.error('Error fetching pharmacies:', error);
+          setPharmacies([]);
         }
 
-        const stockResponse = await fetch('http://localhost:5000/api/stock/pharmacy/1');
-        const stockData = await stockResponse.json();
-        if (stockData.success && stockData.data) {
-          setAvailableMedicines(stockData.data.map(item => ({
-            _id: item._id,
-            name: item.medicineName,
-            price: `₹${item.unitPrice}`,
-            unitPrice: item.unitPrice,
-            availability: item.quantity > 0 ? (item.quantity <= item.minStockLevel ? "Limited Stock" : "In Stock") : "Out of Stock",
-            quantity: item.quantity,
-            category: item.category,
-            manufacturer: item.manufacturer,
-            expiryDate: item.expiryDate
-          })));
-        } else {
+        // Fetch stock data
+        try {
+          const stockResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stock/pharmacy/1`);
+          if (stockResponse.ok) {
+            const stockData = await stockResponse.json();
+            if (stockData.success && stockData.data) {
+              setAvailableMedicines(stockData.data.map(item => ({
+                _id: item._id,
+                name: item.medicineName,
+                price: `₹${item.unitPrice}`,
+                unitPrice: item.unitPrice,
+                availability: item.quantity > 0 ? (item.quantity <= item.minStockLevel ? "Limited Stock" : "In Stock") : "Out of Stock",
+                quantity: item.quantity,
+                category: item.category,
+                manufacturer: item.manufacturer,
+                expiryDate: item.expiryDate
+              })));
+            } else {
+              throw new Error('No stock data available');
+            }
+          } else {
+            throw new Error('Stock API not available');
+          }
+        } catch (error) {
+          console.error('Error fetching stock:', error);
+          // Use fallback data
           setAvailableMedicines([
             { _id: '1', name: "Paracetamol 500mg", price: "₹2.50", unitPrice: 2.50, availability: "In Stock", quantity: 100 },
             { _id: '2', name: "Amoxicillin 250mg", price: "₹8.00", unitPrice: 8.00, availability: "In Stock", quantity: 50 },
@@ -57,12 +73,7 @@ export default function PharmaciesPage() {
           ]);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setAvailableMedicines([
-          { _id: '1', name: "Paracetamol 500mg", price: "₹2.50", unitPrice: 2.50, availability: "In Stock", quantity: 100 },
-          { _id: '2', name: "Amoxicillin 250mg", price: "₹8.00", unitPrice: 8.00, availability: "In Stock", quantity: 50 },
-          { _id: '3', name: "Cough Syrup", price: "₹45.00", unitPrice: 45.00, availability: "In Stock", quantity: 25 },
-        ]);
+        console.error('Error in fetchData:', error);
       } finally {
         setLoading(false);
       }
@@ -120,18 +131,53 @@ export default function PharmaciesPage() {
         orderedBy: user._id || '507f1f77bcf86cd799439011'
       };
 
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/orders`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(orderData)
       });
 
       const result = await response.json();
       if (result.success) {
-        alert(`Order created successfully! Order Number: ${result.data.orderNumber}`);
+        // Update stock after successful order
+        try {
+          const stockUpdateResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stock/reduce`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              items: cart.map(item => ({
+                medicineName: item.name,
+                quantity: item.quantity
+              }))
+            })
+          });
+          
+          if (stockUpdateResponse.ok) {
+            // Update local stock state
+            setAvailableMedicines(prev => 
+              prev.map(medicine => {
+                const cartItem = cart.find(item => item.name === medicine.name);
+                if (cartItem) {
+                  const newQuantity = Math.max(0, medicine.quantity - cartItem.quantity);
+                  return {
+                    ...medicine,
+                    quantity: newQuantity,
+                    availability: newQuantity > 0 ? (newQuantity <= 20 ? "Limited Stock" : "In Stock") : "Out of Stock"
+                  };
+                }
+                return medicine;
+              })
+            );
+          }
+        } catch (stockError) {
+          console.error('Error updating stock:', stockError);
+        }
+        
+        alert(`Order created successfully! Order Number: ${result.data?.orderNumber || 'ORD' + Date.now()}`);
         setCart([]);
         setIsCartOpen(false);
       } else {
@@ -174,9 +220,9 @@ export default function PharmaciesPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{t('pharmacy.title')}</h1>
+          <h1 className="text-3xl font-bold mb-2">Local Pharmacies</h1>
           <p className="text-muted-foreground">
-            {t('pharmacy.subtitle')}
+            Find and order medicines from nearby pharmacies
           </p>
         </div>
 
@@ -190,20 +236,20 @@ export default function PharmaciesPage() {
             onClick={() => setIsPrescriptionUploadOpen(true)}
           >
             <Pill className="mr-2 h-4 w-4" />
-            {t('pharmacy.uploadPrescription')}
+            Upload Prescription
           </Button>
           <Button variant="outline" className="w-full">
             <Phone className="mr-2 h-4 w-4" />
-            {t('pharmacy.emergencyOrder')}
+            Emergency Order
           </Button>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">{t('pharmacy.localPharmacies')}</h2>
+              <h2 className="text-2xl font-semibold">Local Pharmacies</h2>
               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                {pharmacies.length} {t('pharmacy.pharmaciesAvailable')}
+                {pharmacies.length} Available
               </Badge>
             </div>
 
@@ -297,13 +343,13 @@ export default function PharmaciesPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>{t('pharmacy.quickMedicineOrder')}</CardTitle>
-                <CardDescription>{t('pharmacy.orderCommonMedicines')}</CardDescription>
+                <CardTitle>Quick Medicine Order</CardTitle>
+                <CardDescription>Order common medicines quickly</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
 
                   <div className="space-y-3">
-                    {commonMedicines.map((medicine, index) => (
+                    {availableMedicines.slice(0, 6).map((medicine, index) => (
                       <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-medium text-sm">{medicine.name}</h4>
@@ -324,7 +370,7 @@ export default function PharmaciesPage() {
                             size="sm" 
                             variant="outline" 
                             className="text-xs"
-                            onClick={() => addToCart(medicine)}
+                            onClick={() => addToLocalCart(medicine)}
                           >
                             Add
                           </Button>
@@ -337,23 +383,23 @@ export default function PharmaciesPage() {
                   onClick={() => setIsCartOpen(true)}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  {t('pharmacy.viewCart')} ({getCartCount()}) {t('pharmacy.checkout')}
+                  View Cart ({getLocalCartCount()}) Checkout
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="border-destructive/20 bg-destructive/5">
               <CardHeader>
-                <CardTitle className="text-destructive">{t('pharmacy.emergencyMedicine')}</CardTitle>
-                <CardDescription>{t('pharmacy.emergencyDelivery')}</CardDescription>
+                <CardTitle className="text-destructive">Emergency Medicine</CardTitle>
+                <CardDescription>24/7 emergency delivery service</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {t('pharmacy.emergencyText')}
+                  Need urgent medicine delivery? Call our emergency hotline for immediate assistance.
                 </p>
                 <Button variant="destructive" className="w-full">
                   <Phone className="mr-2 h-4 w-4" />
-                  {t('pharmacy.callEmergency')}
+                  Call Emergency: 108
                 </Button>
               </CardContent>
             </Card>

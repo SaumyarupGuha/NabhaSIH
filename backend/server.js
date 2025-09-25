@@ -58,17 +58,28 @@ mongoose.connect(process.env.MONGODB_URI)
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
   
+  // Join pharmacy room for order notifications
+  socket.on('joinPharmacyRoom', (pharmacyId) => {
+    socket.join(`pharmacy_${pharmacyId}`);
+    console.log(`🏪 Pharmacy ${pharmacyId} joined room: pharmacy_${pharmacyId}`);
+  });
+  
   // Join doctor room for real-time alerts
   socket.on('joinDoctorRoom', (doctorId) => {
     socket.join(`doctor_${doctorId}`);
     console.log(`🏠 Doctor ${doctorId} joined room: doctor_${doctorId}`);
-    console.log(`📊 Total rooms:`, socket.rooms);
+  });
+  
+  // Join general pharmacy dashboard room
+  socket.on('joinPharmacyDashboard', () => {
+    socket.join('pharmacy_dashboard');
+    console.log('🏪 Client joined pharmacy dashboard room');
   });
   
   socket.on('disconnect', () => {
-      console.log('🔌 Client disconnected:', socket.id);
-    });
+    console.log('🔌 Client disconnected:', socket.id);
   });
+});
 
 // Initialize order events
 handleOrderEvents(io);
@@ -84,6 +95,8 @@ app.use('/api/pharmacies', pharmacyRoutes);
 app.use('/api/health-data', healthDataRoutes);
 app.use('/api/test-alert', testAlertRoutes);
 app.use('/api/medicines', medicineRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/stock', stockRoutes);
 
   // Health check route
   app.get('/api/health', (req, res) => {

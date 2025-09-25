@@ -21,8 +21,7 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   acceptedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,  // Changed to String to support pharmacy IDs
     default: null
   },
   acceptedAt: {
@@ -40,13 +39,19 @@ const orderSchema = new mongoose.Schema({
       return 'ORD' + Date.now() + Math.random().toString(36).substr(2, 5).toUpperCase();
     }
   },
+  customerInfo: {
+    name: String,
+    phone: String,
+    address: String
+  },
   prescriptionUrl: String,
   notes: String
 }, {
   timestamps: true
 });
 
-// Index for efficient querying
+// Compound index for atomic claiming
 orderSchema.index({ status: 1, acceptedBy: 1 });
+orderSchema.index({ _id: 1, status: 1, acceptedBy: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

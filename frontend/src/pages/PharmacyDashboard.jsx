@@ -1,510 +1,475 @@
 import React, { useState, useEffect } from 'react';
-import { useSocket } from '../hooks/useSocket';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import {
-  Package, ShoppingCart, Clock, User, MapPin, Pill, Phone,
-  CheckCircle, Plus, Search, Eye, Edit, AlertCircle, TrendingUp, RefreshCw
+import io from 'socket.io-client';
+import { 
+  Package, 
+  ShoppingCart, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle,
+  TrendingUp,
+  Users,
+  Pill,
+  Phone,
+  MapPin,
+  Eye,
+  Edit,
+  Plus
 } from 'lucide-react';
-import api from '../lib/api';
 
 export default function PharmacyDashboard() {
   const [orders, setOrders] = useState([]);
   const [stock, setStock] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
-  const socket = useSocket();
+  const [activeTab, setActiveTab] = useState('orders');
+  const [socket, setSocket] = useState(null);
+  const [pharmacyId] = useState(() => {
+    // Generate unique pharmacy ID for each browser tab/instance
+    return 'pharmacy_' + Math.random().toString(36).substr(2, 9);
+  });
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    setCurrentUser(user);
-  }, []);
+    const fetchData = async () => {
+      try {
+        // Fetch orders with pharmacy filter
+        const ordersResponse = await fetch(`http://localhost:5000/api/orders?pharmacyId=${pharmacyId}`);
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json();
+          setOrders(ordersData.data || []);
+        }
 
+        // Fetch stock
+        const stockResponse = await fetch('http://localhost:5000/api/stock/pharmacy/1');
+        if (stockResponse.ok) {
+          const stockData = await stockResponse.json();
+          setStock(stockData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchData();
 
-  useEffect(() => {
-    fetchOrders();
-    fetchStock();
-  }, []);
+    // Setup Socket.io connection
+    const newSocket = io('http://localhost:5000');
+    setSocket(newSocket);
 
-  useEffect(() => {
-    if (!socket) return;
+    // Join pharmacy dashboard room
+    newSocket.emit('joinPharmacyDashboard');
+    newSocket.emit('joinPharmacyRoom', pharmacyId);
 
-    socket.on('orderAccepted', (data) => {
-      setOrders(prev => prev.filter(order => order._id !== data.orderId));
+    // Listen for new orders
+    newSocket.on('newOrder', (order) => {
+      console.log('New order received:', order);
+      setOrders(prev => [order, ...prev]);
     });
 
-    socket.on('orderUpdated', (updatedOrder) => {
-      setOrders(prev => prev.map(order => 
-        order._id === updatedOrder._id ? updatedOrder : order
-      ));
+    // Listen for order claims
+    newSocket.on('orderClaimed', (data) => {
+      console.log('Order claimed by:', data.claimedBy, 'My ID:', pharmacyId);
+      if (data.claimedBy === pharmacyId) {
+        // Update the order in our list (we claimed it)
+        setOrders(prev => prev.map(order => 
+          order._id === data.orderId ? { ...order, status: 'accepted', acceptedBy: pharmacyId } : order
+        ));
+      } else {
+        // Remove the order from our list (claimed by another pharmacy)
+        console.log('Removing order from my list - claimed by someone else');
+        setOrders(prev => prev.filter(order => order._id !== data.orderId));
+      }
     });
 
     return () => {
-      socket.off('orderAccepted');
-      socket.off('orderUpdated');
+      newSocket.disconnect();
     };
-  }, [socket]);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await api.get('/orders');
-      setOrders(response.data || []);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateTodaysSales = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return orders
-      .filter(order => {
-        const orderDate = new Date(order.createdAt);
-        orderDate.setHours(0, 0, 0, 0);
-        return orderDate.getTime() === today.getTime() && 
-               (order.status === 'accepted' || order.status === 'delivered');
-      })
-      .reduce((total, order) => total + (order.totalAmount || 0), 0);
-  };
-
-  const fetchStock = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await api.get(`/stock/pharmacy/${user._id || 'default'}`);
-      setStock(response.data?.data || []);
-    } catch (error) {
-      console.error('Error fetching stock:', error);
-      // Set dummy data if API fails
-      setStock([
-        {
-          _id: '1',
-          medicineName: 'Paracetamol 500mg',
-          category: 'tablet',
-          quantity: 100,
-          unitPrice: 2.50,
-          expiryDate: new Date('2025-12-31'),
-          batchNumber: 'PCM001',
-          manufacturer: 'Sun Pharma',
-          minStockLevel: 20,
-          isAvailable: true
-        },
-        {
-          _id: '2',
-          medicineName: 'Amoxicillin 250mg',
-          category: 'capsule',
-          quantity: 5,
-          unitPrice: 8.00,
-          expiryDate: new Date('2025-08-15'),
-          batchNumber: 'AMX002',
-          manufacturer: 'Cipla',
-          minStockLevel: 15,
-          isAvailable: true
-        }
-      ]);
-    }
-  };
+  }, [pharmacyId]);
 
   const acceptOrder = async (orderId) => {
     try {
-      await api.post(`/orders/${orderId}/accept`);
-    } catch (error) {
-      if (error.response?.status === 409) {
-        alert('Order already taken by another pharmacy');
-        fetchOrders();
+      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pharmacyId })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Order successfully claimed
+        console.log('Order accepted:', result.data);
       } else {
-        console.error('Error accepting order:', error);
+        // Order already taken
+        alert(result.message || 'Order already taken by another pharmacy');
+        // Remove from our list
+        setOrders(prev => prev.filter(order => order._id !== orderId));
       }
+    } catch (error) {
+      console.error('Error accepting order:', error);
+      alert('Failed to accept order. Please try again.');
     }
   };
 
   const updateOrderStatus = async (orderId, status) => {
     try {
-      await api.patch(`/orders/${orderId}/status`, { status });
-      fetchOrders(); // Refresh orders
+      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        setOrders(orders.map(order => 
+          order._id === orderId ? { ...order, status } : order
+        ));
+      }
     } catch (error) {
-      console.error('Error updating order status:', error);
-      alert('Failed to update order status');
+      console.error('Error updating order:', error);
     }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'accepted': return 'bg-blue-100 text-blue-800';
+      case 'preparing': return 'bg-orange-100 text-orange-800';
+      case 'ready': return 'bg-green-100 text-green-800';
+      case 'delivered': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const stats = {
+    totalOrders: orders.length,
+    pendingOrders: orders.filter(o => o.status === 'pending').length,
+    completedOrders: orders.filter(o => o.status === 'delivered').length,
+    lowStock: stock.filter(s => s.quantity <= (s.minStockLevel || 20)).length
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading...</div>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="grid grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-
-
-  const pendingOrders = orders.filter(order => order.status === 'pending');
-  const acceptedOrders = orders.filter(order => order.status !== 'pending');
-  const lowStockItems = stock.filter(item => item.quantity <= (item.minStockLevel || 10));
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Pharmacy Dashboard</h1>
-              <p className="text-muted-foreground">
-                Manage medicine orders, inventory, and customer requests
-              </p>
-            </div>
-            <Button 
-              onClick={() => { fetchOrders(); fetchStock(); }}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh Data
-            </Button>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Pharmacy Dashboard</h1>
+          <p className="text-gray-600">Manage your pharmacy operations efficiently</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Total Orders</p>
+                  <p className="text-3xl font-bold">{stats.totalOrders}</p>
+                </div>
+                <ShoppingCart className="h-12 w-12 text-blue-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-yellow-100 text-sm font-medium">Pending Orders</p>
+                  <p className="text-3xl font-bold">{stats.pendingOrders}</p>
+                </div>
+                <Clock className="h-12 w-12 text-yellow-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Completed</p>
+                  <p className="text-3xl font-bold">{stats.completedOrders}</p>
+                </div>
+                <CheckCircle className="h-12 w-12 text-green-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-100 text-sm font-medium">Low Stock</p>
+                  <p className="text-3xl font-bold">{stats.lowStock}</p>
+                </div>
+                <AlertTriangle className="h-12 w-12 text-red-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'orders'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Orders Management
+              </button>
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'inventory'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Inventory Management
+              </button>
+            </nav>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          {[
-            { title: "Pending Orders", value: pendingOrders.length.toString(), change: "+3", icon: ShoppingCart },
-            { title: "Stock Items", value: stock.length.toString(), change: "+8", icon: Package },
-            { title: "Today's Sales", value: `₹${calculateTodaysSales().toFixed(0)}`, change: "+15%", icon: TrendingUp },
-            { title: "Low Stock Alerts", value: lowStockItems.length.toString(), change: "-2", icon: AlertCircle },
-          ].map((stat, index) => (
-            <Card key={index}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.title}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <p className="text-xs text-green-600">{stat.change} from yesterday</p>
-                  </div>
-                  <stat.icon className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="orders">Medicine Orders</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
-            <TabsTrigger value="customers">Customers</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="orders">
-            <div className="grid lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Pending Orders ({pendingOrders.length})</CardTitle>
-                      <CardDescription>New medicine orders waiting for acceptance</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={fetchOrders}
-                        className="h-8 w-8 p-0"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                        {pendingOrders.length} pending
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {pendingOrders.length === 0 ? (
-                      <div className="text-center py-8">
-                        <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">No pending orders</p>
-                      </div>
-                    ) : (
-                      pendingOrders.map(order => (
-                        <OrderCard 
-                          key={order._id} 
-                          order={order} 
-                          onAccept={() => acceptOrder(order._id)}
-                          showAcceptButton={true}
-                        />
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>My Orders ({acceptedOrders.length})</CardTitle>
-                      <CardDescription>Orders accepted and being processed</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={fetchOrders}
-                        className="h-8 w-8 p-0"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        {acceptedOrders.length} active
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {acceptedOrders.length === 0 ? (
-                      <div className="text-center py-8">
-                        <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">No active orders</p>
-                      </div>
-                    ) : (
-                      acceptedOrders.map(order => (
-                        <OrderCard 
-                          key={order._id} 
-                          order={order} 
-                          showAcceptButton={false}
-                          onStatusUpdate={updateOrderStatus}
-                        />
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Recent Orders</h2>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                New Order
+              </Button>
             </div>
-          </TabsContent>
 
-          <TabsContent value="inventory">
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
+            <div className="grid gap-4">
+              {orders.length === 0 ? (
                 <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Medicine Inventory</CardTitle>
-                        <CardDescription>Manage your medicine stock and pricing</CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="Search medicines..." className="pl-10 w-64" />
+                  <CardContent className="text-center py-12">
+                    <ShoppingCart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No orders found</p>
+                    <p className="text-gray-400">Orders will appear here when customers place them</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                orders.map((order) => (
+                  <Card key={order._id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="bg-blue-100 p-3 rounded-full">
+                            <Package className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">Order #{order.orderNumber}</h3>
+                            <p className="text-gray-600">
+                              {new Date(order.createdAt).toLocaleDateString()} at{' '}
+                              {new Date(order.createdAt).toLocaleTimeString()}
+                            </p>
+                          </div>
                         </div>
-                        <Button>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Medicine
+                        <Badge className={getStatusColor(order.status)}>
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </Badge>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <h4 className="font-medium mb-2">Customer Info</h4>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              {order.customerInfo?.name || 'N/A'}
+                            </div>
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 mr-2" />
+                              {order.customerInfo?.phone || 'N/A'}
+                            </div>
+                            <div className="flex items-center">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              {order.deliveryAddress || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium mb-2">Order Items</h4>
+                          <div className="space-y-1">
+                            {order.medicines?.map((medicine, index) => (
+                              <div key={index} className="flex justify-between text-sm">
+                                <span>{medicine.name} x{medicine.quantity}</span>
+                                <span className="font-medium">₹{(medicine.price * medicine.quantity).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="border-t pt-1 mt-2">
+                              <div className="flex justify-between font-semibold">
+                                <span>Total</span>
+                                <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-2">
+                        {order.status === 'pending' && (
+                          <Button
+                            onClick={() => acceptOrder(order._id)}
+                            className="bg-green-600 hover:bg-green-700"
+                            size="sm"
+                          >
+                            Accept Order
+                          </Button>
+                        )}
+                        {order.status === 'accepted' && (
+                          <Button
+                            onClick={() => updateOrderStatus(order._id, 'preparing')}
+                            className="bg-orange-600 hover:bg-orange-700"
+                            size="sm"
+                          >
+                            Start Preparing
+                          </Button>
+                        )}
+                        {order.status === 'preparing' && (
+                          <Button
+                            onClick={() => updateOrderStatus(order._id, 'ready')}
+                            className="bg-blue-600 hover:bg-blue-700"
+                            size="sm"
+                          >
+                            Mark Ready
+                          </Button>
+                        )}
+                        {order.status === 'ready' && (
+                          <Button
+                            onClick={() => updateOrderStatus(order._id, 'delivered')}
+                            className="bg-green-600 hover:bg-green-700"
+                            size="sm"
+                          >
+                            Mark Delivered
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
                         </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {stock.map((item, index) => (
-                        <div key={index} className="border border-border rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-semibold">{item.medicineName}</h4>
-                              <p className="text-sm text-muted-foreground capitalize">
-                                {item.category} • {item.manufacturer}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold">₹{item.unitPrice}</p>
-                              <Badge 
-                                variant={item.quantity > item.minStockLevel ? "secondary" : "destructive"}
-                                className={item.quantity > item.minStockLevel ? "bg-green-100 text-green-800" : ""}
-                              >
-                                {item.quantity > item.minStockLevel ? "In Stock" : "Low Stock"}
-                              </Badge>
-                            </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Inventory Tab */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Medicine Inventory</h2>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Medicine
+              </Button>
+            </div>
+
+            <div className="grid gap-4">
+              {stock.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Pill className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No medicines in stock</p>
+                    <p className="text-gray-400">Add medicines to manage your inventory</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stock.map((medicine) => (
+                    <Card key={medicine._id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="bg-green-100 p-2 rounded-full">
+                            <Pill className="h-6 w-6 text-green-600" />
                           </div>
-                          
-                          <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground mb-3">
-                            <div>Quantity: {item.quantity}</div>
-                            <div>Batch: {item.batchNumber}</div>
-                            <div>Expiry: {new Date(item.expiryDate).toLocaleDateString()}</div>
+                          <Badge 
+                            className={
+                              medicine.quantity <= (medicine.minStockLevel || 20)
+                                ? 'bg-red-100 text-red-800'
+                                : medicine.quantity <= 50
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                            }
+                          >
+                            {medicine.quantity <= (medicine.minStockLevel || 20) ? 'Low Stock' : 'In Stock'}
+                          </Badge>
+                        </div>
+
+                        <h3 className="font-semibold text-lg mb-2">{medicine.medicineName}</h3>
+                        
+                        <div className="space-y-2 text-sm text-gray-600 mb-4">
+                          <div className="flex justify-between">
+                            <span>Category:</span>
+                            <span className="font-medium">{medicine.category || 'N/A'}</span>
                           </div>
-                          
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
-                              <Edit className="mr-2 h-4 w-4" />
-                              Update Stock
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </Button>
+                          <div className="flex justify-between">
+                            <span>Quantity:</span>
+                            <span className="font-medium">{medicine.quantity}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Unit Price:</span>
+                            <span className="font-medium">₹{medicine.unitPrice}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Manufacturer:</span>
+                            <span className="font-medium">{medicine.manufacturer || 'N/A'}</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
 
-              <div>
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-destructive">Low Stock Alerts</CardTitle>
-                    <CardDescription>Items running low on stock</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {lowStockItems.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">All items well stocked</p>
-                      ) : (
-                        lowStockItems.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 border border-destructive/20 rounded-lg bg-destructive/5">
-                            <div>
-                              <p className="font-medium text-sm">{item.medicineName}</p>
-                              <p className="text-xs text-muted-foreground">Only {item.quantity} left</p>
-                            </div>
-                            <Button size="sm" variant="destructive">
-                              Reorder
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button className="w-full" variant="outline">
-                      <Package className="mr-2 h-4 w-4" />
-                      Bulk Stock Update
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      <AlertCircle className="mr-2 h-4 w-4" />
-                      Expiry Alerts
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      <TrendingUp className="mr-2 h-4 w-4" />
-                      Sales Report
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm" className="flex-1">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1">
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="customers">
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Management</CardTitle>
-                <CardDescription>View customer orders and prescription history</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Customer management features coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sales & Analytics</CardTitle>
-                <CardDescription>View sales reports and business analytics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Analytics dashboard coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
-  );
-}
-
-function OrderCard({ order, onAccept, showAcceptButton, onStatusUpdate }) {
-  return (
-    <div className="border border-border rounded-lg p-4">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-semibold">Order #{order._id?.slice(-6) || 'N/A'}</h4>
-          <p className="text-sm text-muted-foreground">
-            {order.patientId?.name || 'Unknown Patient'}
-          </p>
-        </div>
-        <Badge variant={order.status === 'pending' ? 'secondary' : 'default'}>
-          {order.status}
-        </Badge>
-      </div>
-      
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4" />
-          <span>{order.deliveryAddress || 'Address not provided'}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span>{new Date(order.createdAt).toLocaleString()}</span>
-        </div>
-      </div>
-
-      <div className="space-y-2 mb-4">
-        <h5 className="font-medium text-sm flex items-center gap-2">
-          <Pill className="h-4 w-4" />
-          Medicines:
-        </h5>
-        {order.medicines?.map((medicine, index) => (
-          <div key={index} className="text-sm bg-gray-50 p-2 rounded">
-            {medicine.name} - Qty: {medicine.quantity} - ₹{medicine.price}
           </div>
-        )) || <p className="text-sm text-muted-foreground">No medicines listed</p>}
-      </div>
-
-      <div className="flex justify-between items-center pt-2 border-t">
-        <span className="font-semibold">Total: ₹{order.totalAmount || '0'}</span>
-        <div className="flex gap-2">
-          {showAcceptButton && (
-            <Button onClick={onAccept} size="sm">
-              Accept Order
-            </Button>
-          )}
-          {!showAcceptButton && order.status === 'accepted' && (
-            <Button onClick={() => onStatusUpdate && onStatusUpdate(order._id, 'delivered')} size="sm" variant="outline">
-              Mark Delivered
-            </Button>
-          )}
-          <Button size="sm" variant="outline">
-            <Phone className="mr-2 h-4 w-4" />
-            Call
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   );

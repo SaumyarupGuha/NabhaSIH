@@ -15,17 +15,11 @@ export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const addToCart = (medicine) => {
-    if (!medicine || (!medicine.name && !medicine.medicineName)) {
-      console.error('Invalid medicine object:', medicine);
-      return;
-    }
-    
     setCartItems(prev => {
-      const itemName = medicine.name || medicine.medicineName;
-      const existing = prev.find(item => (item.name || item.medicineName) === itemName);
+      const existing = prev.find(item => item.name === medicine.name);
       if (existing) {
         return prev.map(item =>
-          (item.name || item.medicineName) === itemName
+          item.name === medicine.name
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -35,7 +29,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = (medicineName) => {
-    setCartItems(prev => prev.filter(item => (item.name || item.medicineName) !== medicineName));
+    setCartItems(prev => prev.filter(item => item.name !== medicineName));
   };
 
   const updateQuantity = (medicineName, quantity) => {
@@ -45,7 +39,7 @@ export const CartProvider = ({ children }) => {
     }
     setCartItems(prev =>
       prev.map(item =>
-        (item.name || item.medicineName) === medicineName ? { ...item, quantity } : item
+        item.name === medicineName ? { ...item, quantity } : item
       )
     );
   };
@@ -56,8 +50,8 @@ export const CartProvider = ({ children }) => {
 
   const getCartTotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = item.unitPrice || parseFloat((item.price || '0').replace('₹', ''));
-      return total + (price * (item.quantity || 1));
+      const price = parseFloat(item.price.replace('₹', ''));
+      return total + (price * item.quantity);
     }, 0);
   };
 

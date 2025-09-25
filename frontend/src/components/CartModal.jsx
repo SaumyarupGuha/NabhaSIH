@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Button } from './ui/Button';
 import { X, Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
-import api from '../lib/api';
 
 export const CartModal = () => {
   const { 
@@ -20,56 +19,22 @@ export const CartModal = () => {
     name: '',
     phone: '',
     address: '',
-    paymentMethod: 'cod',
-    coordinates: null
+    paymentMethod: 'cod'
   });
-  const [gettingLocation, setGettingLocation] = useState(false);
 
   if (!isCartOpen) return null;
-
-  const getCurrentLocation = () => {
-    setGettingLocation(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setOrderData(prev => ({ ...prev, coordinates: coords }));
-          setGettingLocation(false);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          alert('Could not get your location. Please enter address manually.');
-          setGettingLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-      );
-    } else {
-      alert('Geolocation is not supported by this browser.');
-      setGettingLocation(false);
-    }
-  };
 
   const handleCheckout = async (e) => {
     e.preventDefault();
     
     try {
-      // Validate cart items
-      const validItems = cartItems.filter(item => item && (item.name || item.medicineName));
-      if (validItems.length === 0) {
-        alert('Your cart is empty!');
-        return;
-      }
-      
       const orderPayload = {
         orderType: 'patient',
-        items: validItems.map(item => ({
-          medicineName: item.name || item.medicineName,
+        items: cartItems.map(item => ({
+          medicineName: item.name || item.medicineName || 'Unknown Medicine',
           quantity: item.quantity || 1,
-          unitPrice: item.unitPrice || parseFloat((item.price || '0').replace('₹', '')),
-          totalPrice: (item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))) * (item.quantity || 1)
+          unitPrice: parseFloat((item.price || '0').replace('₹', '')),
+          totalPrice: parseFloat((item.price || '0').replace('₹', '')) * (item.quantity || 1)
         })),
         customerInfo: {
           name: orderData.name,
@@ -78,44 +43,30 @@ export const CartModal = () => {
         },
         deliveryType: 'delivery',
         deliveryAddress: orderData.address,
-        coordinates: orderData.coordinates || { lat: 30.7046, lng: 76.1512 },
-        orderedBy: '68ccf820249ad6de413eab2f'
+        coordinates: { lat: 30.7046, lng: 76.1512 },
+        orderedBy: '68ccf820249ad6de413eab2f', // Valid patient ObjectId
+        assignedPharmacy: '68ccf820249ad6de413eab2e' // Explicitly assign to your pharmacy
       };
 
-      // Check if user is logged in
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please login to place an order');
-        return;
-      }
-
-      const response = await api.post('/orders', {
-        medicines: validItems.map(item => ({
-          name: item.name || item.medicineName,
-          quantity: item.quantity || 1,
-          price: item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))
-        })),
-        deliveryAddress: orderData.address,
-        totalAmount: getCartTotal()
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
       });
 
-      const result = response.data;
+      const result = await response.json();
       
       if (result.success) {
-        alert(`Order placed successfully! Order ID: ${result.order._id}\nEstimated delivery: 30-45 minutes`);
+        alert(`Order placed successfully! Order #${result.data.orderNumber}\nEstimated delivery: 30-45 minutes`);
         clearCart();
         setIsCartOpen(false);
         setShowCheckout(false);
       } else {
-        alert('Error placing order: ' + (result.message || 'Unknown error'));
+        alert('Error placing order: ' + result.message);
       }
     } catch (error) {
+      alert('Error placing order. Please try again.');
       console.error('Order error:', error);
-      if (error.response?.data?.message) {
-        alert('Error placing order: ' + error.response.data.message);
-      } else {
-        alert('Error placing order. Please try again.');
-      }
     }
   };
 
@@ -142,11 +93,11 @@ export const CartModal = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {cartItems.filter(item => item && (item.name || item.medicineName)).map((item, index) => (
+                  {cartItems.map((item, index) => (
                     <div key={item.name || item.medicineName || index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
-                        <h3 className="font-medium">{item.name || item.medicineName}</h3>
-                        <p className="text-sm text-gray-600">{item.price || `₹${item.unitPrice}`} each</p>
+                        <h3 className="font-medium">{item.name || item.medicineName || 'Unknown Medicine'}</h3>
+                        <p className="text-sm text-gray-600">{item.price || '₹0'} each</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           item.availability === "In Stock" 
                             ? "bg-green-100 text-green-800" 
@@ -175,7 +126,7 @@ export const CartModal = () => {
                         
                         <div className="text-right">
                           <p className="font-medium">
-                            ₹{((item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))) * (item.quantity || 1)).toFixed(2)}
+                            ₹{(parseFloat((item.price || '0').replace('₹', '')) * (item.quantity || 1)).toFixed(2)}
                           </p>
                         </div>
                         
@@ -219,10 +170,10 @@ export const CartModal = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">Order Summary</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  {cartItems.filter(item => item && (item.name || item.medicineName)).map((item, index) => (
+                  {cartItems.map((item, index) => (
                     <div key={item.name || item.medicineName || index} className="flex justify-between text-sm mb-1">
-                      <span>{item.name || item.medicineName} x{item.quantity || 1}</span>
-                      <span>₹{((item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))) * (item.quantity || 1)).toFixed(2)}</span>
+                      <span>{item.name || item.medicineName || 'Unknown Medicine'} x{item.quantity || 1}</span>
+                      <span>₹{(parseFloat((item.price || '0').replace('₹', '')) * (item.quantity || 1)).toFixed(2)}</span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2 font-semibold">
@@ -261,31 +212,14 @@ export const CartModal = () => {
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Delivery Address</label>
-                  <div className="space-y-2">
-                    <textarea
-                      required
-                      value={orderData.address}
-                      onChange={(e) => setOrderData({...orderData, address: e.target.value})}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                      rows="3"
-                      placeholder="Enter complete delivery address"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={getCurrentLocation}
-                      disabled={gettingLocation}
-                      className="w-full"
-                    >
-                      {gettingLocation ? 'Getting Location...' : '📍 Use Current Location'}
-                    </Button>
-                    {orderData.coordinates && (
-                      <p className="text-xs text-green-600">
-                        ✓ Location detected for accurate pharmacy assignment
-                      </p>
-                    )}
-                  </div>
+                  <textarea
+                    required
+                    value={orderData.address}
+                    onChange={(e) => setOrderData({...orderData, address: e.target.value})}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                    rows="3"
+                    placeholder="Enter complete delivery address"
+                  />
                 </div>
                 
                 <div>
