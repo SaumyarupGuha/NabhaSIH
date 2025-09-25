@@ -71,8 +71,13 @@ io.on('connection', (socket) => {
   
   // Join patient room for video calls
   socket.on('joinPatientRoom', (patientId) => {
-    socket.join(`patient_${patientId}`);
-    console.log(`🏠 Patient ${patientId} joined room: patient_${patientId}`);
+    const roomName = `patient_${patientId}`;
+    socket.join(roomName);
+    console.log(`🏠 Patient ${patientId} joined room: ${roomName}`);
+    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} members`);
+    
+    // Send confirmation back to patient
+    socket.emit('roomJoined', { room: roomName, patientId });
   });
   
   // Video call signaling
