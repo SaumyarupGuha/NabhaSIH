@@ -28,6 +28,8 @@ export default function SignupPage() {
     license: '',
     specialization: '',
     hospital: '',
+    availableDays: [],
+    consultationFee: '',
     pharmacyName: '',
     pharmacyAddress: ''
   });
@@ -257,6 +259,45 @@ export default function SignupPage() {
                       onChange={handleChange}
                       required 
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="consultationFee">Consultation Fee (₹)</Label>
+                    <Input 
+                      id="consultationFee" 
+                      name="consultationFee"
+                      type="number"
+                      placeholder="Enter consultation fee" 
+                      value={formData.consultationFee}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Available Days</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                        <label key={day} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.availableDays.includes(day)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  availableDays: [...formData.availableDays, day]
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  availableDays: formData.availableDays.filter(d => d !== day)
+                                });
+                              }
+                            }}
+                          />
+                          <span className="text-sm">{day}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
