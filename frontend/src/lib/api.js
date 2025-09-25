@@ -41,7 +41,10 @@ export const appointmentAPI = {
   getAppointments: () => api.get('/appointments'),
   bookAppointment: (data) => api.post('/appointments', data),
   updateStatus: (id, status) => api.patch(`/appointments/${id}/status`, { status }),
-  getDoctors: () => api.get('/appointments/doctors'),
+  startConsultation: (id) => api.patch(`/appointments/${id}/start`),
+  completeConsultation: (id, data) => api.patch(`/appointments/${id}/complete`, data),
+  getDoctors: (params) => api.get('/appointments/doctors', { params }),
+  getQueue: () => api.get('/appointments/queue'),
 };
 
 export const prescriptionAPI = {
