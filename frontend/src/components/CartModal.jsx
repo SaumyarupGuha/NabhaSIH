@@ -31,10 +31,10 @@ export const CartModal = () => {
       const orderPayload = {
         orderType: 'patient',
         items: cartItems.map(item => ({
-          medicineName: item.name,
-          quantity: item.quantity,
-          unitPrice: parseFloat(item.price.replace('₹', '')),
-          totalPrice: parseFloat(item.price.replace('₹', '')) * item.quantity
+          medicineName: item.name || item.medicineName || 'Unknown Medicine',
+          quantity: item.quantity || 1,
+          unitPrice: parseFloat((item.price || '0').replace('₹', '')),
+          totalPrice: parseFloat((item.price || '0').replace('₹', '')) * (item.quantity || 1)
         })),
         customerInfo: {
           name: orderData.name,
@@ -57,7 +57,7 @@ export const CartModal = () => {
       const result = await response.json();
       
       if (result.success) {
-        alert(`Order placed successfully! Order #${result.data.orderNumber}\nAssigned to: ${result.assignedPharmacy.name}\nEstimated delivery: 30-45 minutes`);
+        alert(`Order placed successfully! Order #${result.data.orderNumber}\nEstimated delivery: 30-45 minutes`);
         clearCart();
         setIsCartOpen(false);
         setShowCheckout(false);
@@ -93,11 +93,11 @@ export const CartModal = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {cartItems.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between p-4 border rounded-lg">
+                  {cartItems.map((item, index) => (
+                    <div key={item.name || item.medicineName || index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
-                        <h3 className="font-medium">{item.name}</h3>
-                        <p className="text-sm text-gray-600">{item.price} each</p>
+                        <h3 className="font-medium">{item.name || item.medicineName || 'Unknown Medicine'}</h3>
+                        <p className="text-sm text-gray-600">{item.price || '₹0'} each</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           item.availability === "In Stock" 
                             ? "bg-green-100 text-green-800" 
@@ -110,14 +110,14 @@ export const CartModal = () => {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQuantity(item.name, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.name || item.medicineName, (item.quantity || 1) - 1)}
                             className="p-1 rounded-full hover:bg-gray-100"
                           >
                             <Minus className="h-4 w-4" />
                           </button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <span className="w-8 text-center font-medium">{item.quantity || 1}</span>
                           <button
-                            onClick={() => updateQuantity(item.name, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.name || item.medicineName, (item.quantity || 1) + 1)}
                             className="p-1 rounded-full hover:bg-gray-100"
                           >
                             <Plus className="h-4 w-4" />
@@ -126,12 +126,12 @@ export const CartModal = () => {
                         
                         <div className="text-right">
                           <p className="font-medium">
-                            ₹{(parseFloat(item.price.replace('₹', '')) * item.quantity).toFixed(2)}
+                            ₹{(parseFloat((item.price || '0').replace('₹', '')) * (item.quantity || 1)).toFixed(2)}
                           </p>
                         </div>
                         
                         <button
-                          onClick={() => removeFromCart(item.name)}
+                          onClick={() => removeFromCart(item.name || item.medicineName)}
                           className="p-1 text-red-500 hover:bg-red-50 rounded-full"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -170,10 +170,10 @@ export const CartModal = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">Order Summary</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  {cartItems.map((item) => (
-                    <div key={item.name} className="flex justify-between text-sm mb-1">
-                      <span>{item.name} x{item.quantity}</span>
-                      <span>₹{(parseFloat(item.price.replace('₹', '')) * item.quantity).toFixed(2)}</span>
+                  {cartItems.map((item, index) => (
+                    <div key={item.name || item.medicineName || index} className="flex justify-between text-sm mb-1">
+                      <span>{item.name || item.medicineName || 'Unknown Medicine'} x{item.quantity || 1}</span>
+                      <span>₹{(parseFloat((item.price || '0').replace('₹', '')) * (item.quantity || 1)).toFixed(2)}</span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2 font-semibold">

@@ -176,4 +176,23 @@ router.delete('/:stockId', async (req, res) => {
   }
 });
 
+// Reduce stock after order
+router.post('/reduce', async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    for (const item of items) {
+      await Stock.findOneAndUpdate(
+        { medicineName: item.medicineName },
+        { $inc: { quantity: -item.quantity } },
+        { new: true }
+      );
+    }
+    
+    res.json({ success: true, message: 'Stock updated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

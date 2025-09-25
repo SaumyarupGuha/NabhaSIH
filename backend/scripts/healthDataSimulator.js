@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 class HealthDataSimulator {
-  constructor(baseUrl = 'http://localhost:5000', intervalMinutes = 1) {
+  constructor(baseUrl = 'https://nabhasih-1.onrender.com', intervalMinutes = 1) {
     this.baseUrl = baseUrl;
     this.interval = intervalMinutes * 60 * 1000; // Convert to milliseconds
     this.dataIndex = 0;
@@ -14,15 +14,42 @@ class HealthDataSimulator {
     const dataPath = path.join(__dirname, '../data/sample-health-data.json');
     this.healthData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
     
-    // Actual patient IDs from database
-    this.patientIds = [
-      '68cc4acae4fc2d7ddaf13fa4',
-      '68ccec50249ad6de413eaaf3'
-    ];
+    // Will be populated from database
+    this.patientIds = [];
+    this.loadPatientIds();
+  }
+
+  async loadPatientIds() {
+    try {
+      console.log(`🔗 Loading patient IDs from: ${this.baseUrl}/api/users?role=patient`);
+      const response = await axios.get(`${this.baseUrl}/api/users?role=patient`);
+      if (response.data.success && response.data.data.length > 0) {
+        this.patientIds = response.data.data.map(patient => patient._id);
+        console.log(`📋 Loaded ${this.patientIds.length} patient IDs:`, this.patientIds);
+      } else {
+        console.log('⚠️ No patients found in database');
+      }
+    } catch (error) {
+      console.error('❌ Error loading patient IDs:', error.message);
+      // Fallback to hardcoded IDs
+      this.patientIds = ['68cc4acae4fc2d7ddaf13fa4', '68ccec50249ad6de413eaaf3'];
+    }
   }
 
   async sendHealthData() {
+
+    
     try {
+      if (this.patientIds.length === 0) {
+        console.log('⚠️ No patient IDs available, reloading...');
+        await this.loadPatientIds();
+        if (this.patientIds.length === 0) {
+          console.log('❌ Still no patient IDs, skipping this cycle');
+          return;
+        }
+      }
+
+      // Cycle through data continuously
       const data = this.healthData[this.dataIndex % this.healthData.length];
       const patientId = this.patientIds[Math.floor(Math.random() * this.patientIds.length)];
       
@@ -32,35 +59,49 @@ class HealthDataSimulator {
         timestamp: new Date().toISOString()
       };
 
-      console.log(`Sending health data for patient ${patientId}:`, payload);
-      
-      const response = await axios.post(`${this.baseUrl}/api/health-data`, payload, {
-        headers: { 'Content-Type': 'application/json' }
+      console.log(`🩺 Sending health data for patient ${patientId}:`, {
+        heartRate: payload.heartRate,
+        temperature: payload.temperature,
+        oxygenSaturation: payload.oxygenSaturation
       });
       
-      console.log('Data sent successfully:', response.data);
+      const response = await axios.post(`${this.baseUrl}/api/health-data`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000 // 15 second timeout
+      });
+      
+      console.log('✅ Data sent successfully. Alerts created:', response.data.alertsCreated);
       this.dataIndex++;
       
     } catch (error) {
-      console.error('Error sending health data:', error.message);
+      console.error('❌ Error sending health data:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      // Always move to next data point after error
+      this.dataIndex++;
     }
   }
 
-  start() {
+  async start() {
     if (this.isRunning) {
       console.log('Simulator is already running');
       return;
     }
     
-    console.log(`Starting health data simulator (interval: ${this.interval/1000}s)`);
+    console.log(`🚀 Starting health data simulator (interval: ${this.interval/1000}s)`);
+    
+    // Load patient IDs first
+    await this.loadPatientIds();
+    
     this.isRunning = true;
     
     // Send first data immediately
-    this.sendHealthData();
+    await this.sendHealthData();
     
     // Set interval for subsequent data
-    this.intervalId = setInterval(() => {
-      this.sendHealthData();
+    this.intervalId = setInterval(async () => {
+      await this.sendHealthData();
     }, this.interval);
   }
 
@@ -70,7 +111,8 @@ class HealthDataSimulator {
       return;
     }
     
-    console.log('Stopping health data simulator');
+    console.log('🛑 Stopping health data simulator');
+    console.log(`📊 Summary: Processed ${this.dataIndex} data points`);
     this.isRunning = false;
     
     if (this.intervalId) {
@@ -86,6 +128,11 @@ class HealthDataSimulator {
       this.start();
     }
   }
+  
+  reset() {
+    this.dataIndex = 0;
+    console.log('🔄 Simulator reset');
+  }
 }
 
 // CLI usage
@@ -95,7 +142,7 @@ if (require.main === module) {
   // Handle command line arguments
   const args = process.argv.slice(2);
   if (args.includes('--fast')) {
-    simulator.setInterval(0.1); // 6 seconds for testing
+    simulator.setInterval(0.167); // 10 second interval (10/60 minutes)
   }
   
   simulator.start();

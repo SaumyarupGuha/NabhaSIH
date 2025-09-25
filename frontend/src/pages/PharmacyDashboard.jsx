@@ -1,641 +1,475 @@
 import React, { useState, useEffect } from 'react';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import { Package, Clock, CheckCircle, XCircle, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import io from 'socket.io-client';
+import { 
+  Package, 
+  ShoppingCart, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle,
+  TrendingUp,
+  Users,
+  Pill,
+  Phone,
+  MapPin,
+  Eye,
+  Edit,
+  Plus
+} from 'lucide-react';
 
 export default function PharmacyDashboard() {
   const [orders, setOrders] = useState([]);
   const [stock, setStock] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('orders');
   const [socket, setSocket] = useState(null);
-  const [newStockItem, setNewStockItem] = useState({
-    medicineName: '',
-    category: 'tablet',
-    quantity: '',
-    unitPrice: '',
-    expiryDate: '',
-    manufacturer: ''
+  const [pharmacyId] = useState(() => {
+    // Generate unique pharmacy ID for each browser tab/instance
+    return 'pharmacy_' + Math.random().toString(36).substr(2, 9);
   });
 
-  const pharmacyId = '674a1b2c3d4e5f6789012345'; // King Pharmacy ID (the one with stock)
-
   useEffect(() => {
-    // Initialize Socket.IO
+    const fetchData = async () => {
+      try {
+        // Fetch orders with pharmacy filter
+        const ordersResponse = await fetch(`http://localhost:5000/api/orders?pharmacyId=${pharmacyId}`);
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json();
+          setOrders(ordersData.data || []);
+        }
+
+        // Fetch stock
+        const stockResponse = await fetch('http://localhost:5000/api/stock/pharmacy/1');
+        if (stockResponse.ok) {
+          const stockData = await stockResponse.json();
+          setStock(stockData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    // Setup Socket.io connection
     const newSocket = io('http://localhost:5000');
     setSocket(newSocket);
 
-    newSocket.emit('joinPharmacy', pharmacyId);
+    // Join pharmacy dashboard room
+    newSocket.emit('joinPharmacyDashboard');
+    newSocket.emit('joinPharmacyRoom', pharmacyId);
 
-    newSocket.on('newOrder', (orderData) => {
-      setOrders(prev => [orderData.order, ...prev]);
-      // Show notification
-      new Notification('New Order Received!', {
-        body: `Order ${orderData.order.orderNumber} from ${orderData.order.orderType}`,
-        icon: '/nabha_logo.png'
-      });
+    // Listen for new orders
+    newSocket.on('newOrder', (order) => {
+      console.log('New order received:', order);
+      setOrders(prev => [order, ...prev]);
     });
 
-    fetchOrders();
-    fetchStock();
-
-    return () => newSocket.close();
-  }, []);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/orders/pharmacy/${pharmacyId}`);
-      const data = await response.json();
-      console.log('Orders API response:', data);
-      if (data.success && data.data && data.data.length > 0) {
-        setOrders(data.data);
+    // Listen for order claims
+    newSocket.on('orderClaimed', (data) => {
+      console.log('Order claimed by:', data.claimedBy, 'My ID:', pharmacyId);
+      if (data.claimedBy === pharmacyId) {
+        // Update the order in our list (we claimed it)
+        setOrders(prev => prev.map(order => 
+          order._id === data.orderId ? { ...order, status: 'accepted', acceptedBy: pharmacyId } : order
+        ));
       } else {
-        console.log('No orders found, using dummy orders for testing');
-        setDummyOrders();
+        // Remove the order from our list (claimed by another pharmacy)
+        console.log('Removing order from my list - claimed by someone else');
+        setOrders(prev => prev.filter(order => order._id !== data.orderId));
       }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setDummyOrders();
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
 
-  const setDummyOrders = () => {
-    setOrders([
-      {
-        _id: 'order1',
-        orderNumber: 'ORD001',
-        orderType: 'patient',
-        status: 'pending',
-        priority: 'medium',
-        items: [
-          { medicineName: 'Paracetamol 500mg', quantity: 2, unitPrice: 2.50 }
-        ],
-        customerInfo: {
-          name: 'John Doe',
-          phone: '+919876543210',
-          address: '123 Main St, City'
-        },
-        totalAmount: 5.00,
-        createdAt: new Date(),
-        deliveryType: 'delivery'
-      }
-    ]);
-  };
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [pharmacyId]);
 
-  const checkAllOrders = async () => {
+  const acceptOrder = async (orderId) => {
     try {
-      console.log('Checking all orders...');
-      const response = await fetch('http://localhost:5000/api/orders');
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        console.log('API endpoint /api/orders not found or error');
-        console.log('Let\'s check what orders exist by looking at the pharmacy-specific endpoint');
-        
-        // Try to get orders from the pharmacy endpoint and see what we get
-        const pharmacyResponse = await fetch(`http://localhost:5000/api/orders/pharmacy/${pharmacyId}`);
-        const pharmacyData = await pharmacyResponse.json();
-        console.log('Pharmacy orders response:', pharmacyData);
-        return;
-      }
-      
-      const data = await response.json();
-      console.log('All orders in system:', data);
-      console.log('Current pharmacy ID:', pharmacyId);
-      
-      if (data.success && data.data) {
-        const ordersForThisPharmacy = data.data.filter(order => 
-          order.assignedPharmacy === pharmacyId || 
-          order.assignedPharmacy?._id === pharmacyId
-        );
-        console.log('Orders for this pharmacy:', ordersForThisPharmacy);
-        
-        if (ordersForThisPharmacy.length > 0) {
-          setOrders(ordersForThisPharmacy);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking all orders:', error);
-      console.log('The /api/orders endpoint probably doesn\'t exist. Let\'s check the pharmacy endpoint instead.');
-      
-      // Fallback: check the pharmacy endpoint
-      try {
-        const pharmacyResponse = await fetch(`http://localhost:5000/api/orders/pharmacy/${pharmacyId}`);
-        const pharmacyData = await pharmacyResponse.json();
-        console.log('Pharmacy orders response:', pharmacyData);
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-      }
-    }
-  };
-
-  const testOrderCreation = async () => {
-    try {
-      console.log('Testing order creation...');
-      const testOrder = {
-        orderType: 'patient',
-        items: [{
-          medicineName: 'Paracetamol 500mg',
-          quantity: 1,
-          unitPrice: 2.50,
-          totalPrice: 2.50
-        }],
-        customerInfo: {
-          name: 'Test Customer',
-          phone: '+919999999999',
-          address: 'Test Address'
-        },
-        deliveryType: 'delivery',
-        deliveryAddress: 'Test Address',
-        coordinates: { lat: 30.7046, lng: 76.1512 },
-        orderedBy: '68ccf820249ad6de413eab2f',
-        assignedPharmacy: pharmacyId
-      };
-      
-      console.log('Sending test order:', testOrder);
-      
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testOrder)
+        body: JSON.stringify({ pharmacyId })
       });
-      
+
       const result = await response.json();
-      console.log('Test order result:', result);
       
-      if (result.success) {
-        console.log('Test order created successfully!');
-        console.log('Order assigned to pharmacy:', result.assignedPharmacy);
-        console.log('Our pharmacy ID:', pharmacyId);
-        console.log('Do they match?', result.assignedPharmacy._id === pharmacyId || result.assignedPharmacy === pharmacyId);
-        fetchOrders();
+      if (response.ok) {
+        // Order successfully claimed
+        console.log('Order accepted:', result.data);
       } else {
-        console.log('Test order failed:', result.message);
+        // Order already taken
+        alert(result.message || 'Order already taken by another pharmacy');
+        // Remove from our list
+        setOrders(prev => prev.filter(order => order._id !== orderId));
       }
     } catch (error) {
-      console.error('Test order error:', error);
+      console.error('Error accepting order:', error);
+      alert('Failed to accept order. Please try again.');
     }
   };
 
-  const fetchStock = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/stock/pharmacy/${pharmacyId}`);
-      const data = await response.json();
-      if (data.success && data.data && data.data.length > 0) {
-        setStock(data.data);
-      } else {
-        // No stock found or empty response, use dummy data
-        console.log('No stock found, using dummy data');
-        setDummyStock();
-      }
-    } catch (error) {
-      console.error('Error fetching stock:', error);
-      // Fallback to dummy data
-      setDummyStock();
-    }
-  };
-
-  const setDummyStock = () => {
-    setStock([
-      {
-        _id: '1',
-        medicineName: 'Paracetamol 500mg',
-        category: 'tablet',
-        quantity: 100,
-        unitPrice: 2.50,
-        expiryDate: new Date('2025-12-31'),
-        batchNumber: 'PCM001',
-        manufacturer: 'Sun Pharma',
-        minStockLevel: 20,
-        isAvailable: true
-      },
-      {
-        _id: '2',
-        medicineName: 'Amoxicillin 250mg',
-        category: 'capsule',
-        quantity: 50,
-        unitPrice: 8.00,
-        expiryDate: new Date('2025-08-15'),
-        batchNumber: 'AMX002',
-        manufacturer: 'Cipla',
-        minStockLevel: 15,
-        isAvailable: true
-      },
-      {
-        _id: '3',
-        medicineName: 'Cough Syrup',
-        category: 'syrup',
-        quantity: 25,
-        unitPrice: 45.00,
-        expiryDate: new Date('2025-06-30'),
-        batchNumber: 'CS003',
-        manufacturer: 'Dabur',
-        minStockLevel: 10,
-        isAvailable: true
-      },
-      {
-        _id: '4',
-        medicineName: 'Insulin Injection',
-        category: 'injection',
-        quantity: 15,
-        unitPrice: 120.00,
-        expiryDate: new Date('2025-03-20'),
-        batchNumber: 'INS004',
-        manufacturer: 'Novo Nordisk',
-        minStockLevel: 5,
-        isAvailable: true
-      },
-      {
-        _id: '5',
-        medicineName: 'Antiseptic Cream',
-        category: 'ointment',
-        quantity: 30,
-        unitPrice: 25.00,
-        expiryDate: new Date('2026-01-15'),
-        batchNumber: 'AC005',
-        manufacturer: 'Johnson & Johnson',
-        minStockLevel: 8,
-        isAvailable: true
-      },
-      {
-        _id: '6',
-        medicineName: 'Eye Drops',
-        category: 'drops',
-        quantity: 40,
-        unitPrice: 35.00,
-        expiryDate: new Date('2025-09-10'),
-        batchNumber: 'ED006',
-        manufacturer: 'Allergan',
-        minStockLevel: 12,
-        isAvailable: true
-      },
-      {
-        _id: '7',
-        medicineName: 'Vitamin D3',
-        category: 'tablet',
-        quantity: 80,
-        unitPrice: 5.00,
-        expiryDate: new Date('2026-05-25'),
-        batchNumber: 'VD007',
-        manufacturer: 'Ranbaxy',
-        minStockLevel: 25,
-        isAvailable: true
-      },
-      {
-        _id: '8',
-        medicineName: 'Aspirin 75mg',
-        category: 'tablet',
-        quantity: 5,
-        unitPrice: 1.50,
-        expiryDate: new Date('2025-11-30'),
-        batchNumber: 'ASP008',
-        manufacturer: 'Bayer',
-        minStockLevel: 20,
-        isAvailable: true
-      }
-    ]);
-  };
-
-  const handleOrderAction = async (orderId, action, rejectionReason = '') => {
+  const updateOrderStatus = async (orderId, status) => {
     try {
       const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: action,
-          rejectionReason,
-          estimatedTime: action === 'accepted' ? new Date(Date.now() + 45 * 60000) : null
-        })
-      });
-
-      if (response.ok) {
-        fetchOrders();
-      }
-    } catch (error) {
-      console.error('Error updating order:', error);
-    }
-  };
-
-  const updateOrderProgress = async (orderId, status) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/progress`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
 
       if (response.ok) {
-        fetchOrders();
+        setOrders(orders.map(order => 
+          order._id === orderId ? { ...order, status } : order
+        ));
       }
     } catch (error) {
-      console.error('Error updating order progress:', error);
-    }
-  };
-
-  const addStockItem = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/stock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newStockItem,
-          pharmacy: pharmacyId,
-          quantity: parseInt(newStockItem.quantity),
-          unitPrice: parseFloat(newStockItem.unitPrice)
-        })
-      });
-
-      if (response.ok) {
-        setNewStockItem({
-          medicineName: '',
-          category: 'tablet',
-          quantity: '',
-          unitPrice: '',
-          expiryDate: '',
-          manufacturer: ''
-        });
-        fetchStock();
-      }
-    } catch (error) {
-      console.error('Error adding stock:', error);
+      console.error('Error updating order:', error);
     }
   };
 
   const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      assigned: 'bg-blue-100 text-blue-800',
-      accepted: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      preparing: 'bg-orange-100 text-orange-800',
-      ready: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-gray-100 text-gray-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'accepted': return 'bg-blue-100 text-blue-800';
+      case 'preparing': return 'bg-orange-100 text-orange-800';
+      case 'ready': return 'bg-green-100 text-green-800';
+      case 'delivered': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      low: 'bg-green-100 text-green-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-orange-100 text-orange-800',
-      emergency: 'bg-red-100 text-red-800'
-    };
-    return colors[priority] || 'bg-gray-100 text-gray-800';
+  const stats = {
+    totalOrders: orders.length,
+    pendingOrders: orders.filter(o => o.status === 'pending').length,
+    completedOrders: orders.filter(o => o.status === 'delivered').length,
+    lowStock: stock.filter(s => s.quantity <= (s.minStockLevel || 20)).length
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading...</div>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="grid grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Pharmacy Dashboard</h1>
-          <p className="text-muted-foreground">Manage orders and inventory</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Pharmacy Dashboard</h1>
+          <p className="text-gray-600">Manage your pharmacy operations efficiently</p>
         </div>
 
-        <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="orders">Orders ({orders.length})</TabsTrigger>
-            <TabsTrigger value="stock">Stock Management</TabsTrigger>
-          </TabsList>
-          
-          <div className="flex gap-2 mb-4">
-            <Button onClick={fetchOrders} variant="outline">
-              Refresh Orders
-            </Button>
-            <Button onClick={checkAllOrders} variant="outline">
-              Check All Orders
-            </Button>
-            <Button onClick={testOrderCreation} variant="outline">
-              Test Order Creation
-            </Button>
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Total Orders</p>
+                  <p className="text-3xl font-bold">{stats.totalOrders}</p>
+                </div>
+                <ShoppingCart className="h-12 w-12 text-blue-200" />
+              </div>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="orders" className="space-y-6">
-            <div className="grid gap-6">
+          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-yellow-100 text-sm font-medium">Pending Orders</p>
+                  <p className="text-3xl font-bold">{stats.pendingOrders}</p>
+                </div>
+                <Clock className="h-12 w-12 text-yellow-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Completed</p>
+                  <p className="text-3xl font-bold">{stats.completedOrders}</p>
+                </div>
+                <CheckCircle className="h-12 w-12 text-green-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-100 text-sm font-medium">Low Stock</p>
+                  <p className="text-3xl font-bold">{stats.lowStock}</p>
+                </div>
+                <AlertTriangle className="h-12 w-12 text-red-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'orders'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Orders Management
+              </button>
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'inventory'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Inventory Management
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Recent Orders</h2>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                New Order
+              </Button>
+            </div>
+
+            <div className="grid gap-4">
               {orders.length === 0 ? (
                 <Card>
-                  <CardContent className="text-center py-8">
-                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No orders yet</p>
+                  <CardContent className="text-center py-12">
+                    <ShoppingCart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No orders found</p>
+                    <p className="text-gray-400">Orders will appear here when customers place them</p>
                   </CardContent>
                 </Card>
               ) : (
                 orders.map((order) => (
-                  <Card key={order._id} className="overflow-hidden">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">
-                            Order #{order.orderNumber}
-                          </CardTitle>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge className={getStatusColor(order.status)}>
-                              {order.status}
-                            </Badge>
-                            <Badge className={getPriorityColor(order.priority)}>
-                              {order.priority}
-                            </Badge>
-                            <Badge variant="outline">
-                              {order.orderType}
-                            </Badge>
+                  <Card key={order._id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="bg-blue-100 p-3 rounded-full">
+                            <Package className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">Order #{order.orderNumber}</h3>
+                            <p className="text-gray-600">
+                              {new Date(order.createdAt).toLocaleDateString()} at{' '}
+                              {new Date(order.createdAt).toLocaleTimeString()}
+                            </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">₹{order.totalAmount}</p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(order.createdAt).toLocaleString()}
-                          </p>
-                        </div>
+                        <Badge className={getStatusColor(order.status)}>
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </Badge>
                       </div>
-                    </CardHeader>
 
-                    <CardContent className="space-y-4">
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div>
-                          <h4 className="font-medium mb-2">Customer Info:</h4>
-                          <p className="text-sm">{order.customerInfo.name}</p>
-                          <p className="text-sm">{order.customerInfo.phone}</p>
-                          <p className="text-sm">{order.deliveryType === 'delivery' ? order.deliveryAddress : 'Pickup'}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium mb-2">Items:</h4>
-                          {order.items.map((item, index) => (
-                            <div key={index} className="text-sm flex justify-between">
-                              <span>{item.medicineName} x{item.quantity}</span>
-                              <span>₹{item.totalPrice}</span>
+                          <h4 className="font-medium mb-2">Customer Info</h4>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              {order.customerInfo?.name || 'N/A'}
                             </div>
-                          ))}
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 mr-2" />
+                              {order.customerInfo?.phone || 'N/A'}
+                            </div>
+                            <div className="flex items-center">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              {order.deliveryAddress || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium mb-2">Order Items</h4>
+                          <div className="space-y-1">
+                            {order.medicines?.map((medicine, index) => (
+                              <div key={index} className="flex justify-between text-sm">
+                                <span>{medicine.name} x{medicine.quantity}</span>
+                                <span className="font-medium">₹{(medicine.price * medicine.quantity).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="border-t pt-1 mt-2">
+                              <div className="flex justify-between font-semibold">
+                                <span>Total</span>
+                                <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex gap-2 pt-4 border-t">
-                        {order.status === 'assigned' && (
-                          <>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleOrderAction(order._id, 'accepted')}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Accept
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive"
-                              onClick={() => {
-                                const reason = prompt('Rejection reason:');
-                                if (reason) handleOrderAction(order._id, 'rejected', reason);
-                              }}
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Reject
-                            </Button>
-                          </>
+                      <div className="flex space-x-2">
+                        {order.status === 'pending' && (
+                          <Button
+                            onClick={() => acceptOrder(order._id)}
+                            className="bg-green-600 hover:bg-green-700"
+                            size="sm"
+                          >
+                            Accept Order
+                          </Button>
                         )}
-                        
                         {order.status === 'accepted' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => updateOrderProgress(order._id, 'preparing')}
+                          <Button
+                            onClick={() => updateOrderStatus(order._id, 'preparing')}
+                            className="bg-orange-600 hover:bg-orange-700"
+                            size="sm"
                           >
                             Start Preparing
                           </Button>
                         )}
-                        
                         {order.status === 'preparing' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => updateOrderProgress(order._id, 'ready')}
+                          <Button
+                            onClick={() => updateOrderStatus(order._id, 'ready')}
+                            className="bg-blue-600 hover:bg-blue-700"
+                            size="sm"
                           >
                             Mark Ready
                           </Button>
                         )}
-                        
                         {order.status === 'ready' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => updateOrderProgress(order._id, 'delivered')}
+                          <Button
+                            onClick={() => updateOrderStatus(order._id, 'delivered')}
+                            className="bg-green-600 hover:bg-green-700"
+                            size="sm"
                           >
                             Mark Delivered
                           </Button>
                         )}
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))
               )}
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="stock" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add New Stock</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Medicine Name"
-                    value={newStockItem.medicineName}
-                    onChange={(e) => setNewStockItem({...newStockItem, medicineName: e.target.value})}
-                    className="p-2 border rounded-lg"
-                  />
-                  <select
-                    value={newStockItem.category}
-                    onChange={(e) => setNewStockItem({...newStockItem, category: e.target.value})}
-                    className="p-2 border rounded-lg"
-                  >
-                    <option value="tablet">Tablet</option>
-                    <option value="syrup">Syrup</option>
-                    <option value="injection">Injection</option>
-                    <option value="capsule">Capsule</option>
-                    <option value="ointment">Ointment</option>
-                    <option value="drops">Drops</option>
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Quantity"
-                    value={newStockItem.quantity}
-                    onChange={(e) => setNewStockItem({...newStockItem, quantity: e.target.value})}
-                    className="p-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Unit Price"
-                    value={newStockItem.unitPrice}
-                    onChange={(e) => setNewStockItem({...newStockItem, unitPrice: e.target.value})}
-                    className="p-2 border rounded-lg"
-                  />
-                  <input
-                    type="date"
-                    value={newStockItem.expiryDate}
-                    onChange={(e) => setNewStockItem({...newStockItem, expiryDate: e.target.value})}
-                    className="p-2 border rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Manufacturer"
-                    value={newStockItem.manufacturer}
-                    onChange={(e) => setNewStockItem({...newStockItem, manufacturer: e.target.value})}
-                    className="p-2 border rounded-lg"
-                  />
-                </div>
-                <Button onClick={addStockItem} className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Stock
-                </Button>
-              </CardContent>
-            </Card>
+        {/* Inventory Tab */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Medicine Inventory</h2>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Medicine
+              </Button>
+            </div>
 
             <div className="grid gap-4">
-              {stock.map((item) => (
-                <Card key={item._id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium">{item.medicineName}</h3>
-                        <p className="text-sm text-gray-600">{item.category} • {item.manufacturer}</p>
-                        <p className="text-sm text-gray-600">Expires: {new Date(item.expiryDate).toLocaleDateString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold">
-                          {item.quantity} units
-                          {item.quantity <= item.minStockLevel && (
-                            <AlertTriangle className="h-4 w-4 text-red-500 inline ml-2" />
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-600">₹{item.unitPrice} each</p>
-                        <Badge className={item.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {item.isAvailable ? 'Available' : 'Unavailable'}
-                        </Badge>
-                      </div>
-                    </div>
+              {stock.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Pill className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No medicines in stock</p>
+                    <p className="text-gray-400">Add medicines to manage your inventory</p>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stock.map((medicine) => (
+                    <Card key={medicine._id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="bg-green-100 p-2 rounded-full">
+                            <Pill className="h-6 w-6 text-green-600" />
+                          </div>
+                          <Badge 
+                            className={
+                              medicine.quantity <= (medicine.minStockLevel || 20)
+                                ? 'bg-red-100 text-red-800'
+                                : medicine.quantity <= 50
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                            }
+                          >
+                            {medicine.quantity <= (medicine.minStockLevel || 20) ? 'Low Stock' : 'In Stock'}
+                          </Badge>
+                        </div>
+
+                        <h3 className="font-semibold text-lg mb-2">{medicine.medicineName}</h3>
+                        
+                        <div className="space-y-2 text-sm text-gray-600 mb-4">
+                          <div className="flex justify-between">
+                            <span>Category:</span>
+                            <span className="font-medium">{medicine.category || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Quantity:</span>
+                            <span className="font-medium">{medicine.quantity}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Unit Price:</span>
+                            <span className="font-medium">₹{medicine.unitPrice}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Manufacturer:</span>
+                            <span className="font-medium">{medicine.manufacturer || 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm" className="flex-1">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1">
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );

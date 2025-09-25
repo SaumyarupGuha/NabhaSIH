@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 
 const stockSchema = new mongoose.Schema({
   pharmacy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Pharmacy',
+    type: String,
     required: true
   },
   medicineName: {

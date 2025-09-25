@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
-
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { useAuth } from '../context/AuthContext';
 import { Heart, Stethoscope, Pill, Phone, Users, Clock, MapPin } from 'lucide-react';
 import '../i18n';
@@ -12,6 +12,12 @@ import '../i18n';
 export default function HomePage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   const features = [
     {
@@ -73,6 +79,23 @@ export default function HomePage() {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSkeleton />
+          <div className="mt-8">
+            <LoadingSkeleton type="card" />
+          </div>
+          <div className="mt-8">
+            <LoadingSkeleton type="list" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
