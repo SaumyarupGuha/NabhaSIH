@@ -7,6 +7,26 @@ const router = express.Router();
 const { auth, authorize } = require('../middleware/auth');
 const Prescription = require('../models/Prescription');
 
+// Get user prescriptions
+router.get('/', auth, async (req, res) => {
+  try {
+    const prescriptions = await Prescription.find({ patient: req.user.id })
+      .populate('doctor', 'firstName lastName')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      data: prescriptions
+    });
+  } catch (error) {
+    console.error('Error fetching prescriptions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch prescriptions'
+    });
+  }
+});
+
 // Ensure dotenv is loaded
 require('dotenv').config();
 
@@ -101,28 +121,24 @@ router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
     }
 
     // OCR API request
-    let text = '';
-    try {
-      console.log('🔍 Starting OCR process...');
-      const response = await fetch(`https://api.apilayer.com/image_to_text/url?url=${encodeURIComponent(uploadResult.secure_url)}`, {
-        method: 'GET',
-        headers: { 'apikey': process.env.IMAGE_TO_TEXT_API_KEY }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`OCR API error: ${response.status} ${response.statusText}`);
-      }
-      
-      text = await response.text();
-      console.log('📝 OCR Response:', text.substring(0, 200) + '...');
-    } catch (ocrError) {
-      console.error('❌ OCR failed:', ocrError);
-      text = 'Unable to extract text from image. Please ensure the image is clear and try again.';
-    }
+    const response = await fetch(`https://api.apilayer.com/image_to_text/url?url=${encodeURIComponent(uploadResult.secure_url)}`, {
+      method: 'GET',
+      headers: { 'apikey': process.env.IMAGE_TO_TEXT_API_KEY }
+    });
+    
+    const text = await response.text();
+    console.log('OCR Response:', text);
 
-    // Parse medicines
-    const medicines = parseMedicinesFromText(text);
-    console.log('💊 Parsed medicines:', medicines);
+    // Parse medicines from extracted text
+    let extractedText = text;
+    try {
+      const jsonData = JSON.parse(text);
+      extractedText = jsonData.all_text || text;
+    } catch (e) {
+      // If not JSON, use text as is
+    }
+    
+    const medicines = parseMedicinesFromText(extractedText);
 
     // Save prescription to DB
     try {
@@ -197,22 +213,83 @@ router.post('/test-upload', auth, upload.single('image'), async (req, res) => {
 });
 
 function parseMedicinesFromText(text) {
-  const keywords = ['paracetamol','crocin','aspirin','ibuprofen','amoxicillin','azithromycin','omeprazole','metformin','atorvastatin','losartan','tablet','capsule','syrup','mg','ml','dolo','combiflam','disprin'];
-  const lines = text.toLowerCase().split('\n');
   const found = [];
   const added = new Set();
-
+  
+  // Known medicine names to filter against
+  const validMedicines = [
+    'paracetamol', 'crocin advance', 'crocin', 'aspirin', 'ibuprofen', 
+    'amoxicillin', 'azithromycin', 'omeprazole', 'metformin', 'atorvastatin', 
+    'losartan', 'dolo', 'combiflam', 'disprin', 'cetirizine', 'allegra', 
+    'avil', 'pantoprazole', 'ranitidine', 'vitamin d3', 'vitamin d', 
+    'ors packets', 'ors', 'calcium', 'iron', 'zinc'
+  ];
+  
+  // Garbage patterns to exclude
+  const garbagePatterns = [
+    /click to upload/i,
+    /extract text/i,
+    /supports jpg/i,
+    /whatsapp image/i,
+    /detected medicines/i,
+    /add all to cart/i,
+    /^\*\d+/,
+    /^qty:/i,
+    /^\d+$/
+  ];
+  
+  const lines = text.split('\n').filter(line => line.trim());
+  
   lines.forEach(line => {
     const trimmed = line.trim();
-    if (trimmed.length > 2 && keywords.some(k => trimmed.includes(k)) && !added.has(trimmed)) {
-      const qtyMatch = trimmed.match(/\d+/);
-      const qty = qtyMatch ? parseInt(qtyMatch[0]) : 1;
-      found.push({ name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1), quantity: qty, price: '₹50', availability: 'In Stock' });
-      added.add(trimmed);
+    const lowerTrimmed = trimmed.toLowerCase();
+    
+    // Skip garbage patterns
+    if (garbagePatterns.some(pattern => pattern.test(trimmed))) {
+      return;
+    }
+    
+    // Check if line contains a valid medicine
+    const matchedMedicine = validMedicines.find(med => {
+      if (med.includes(' ')) {
+        return med.split(' ').every(word => lowerTrimmed.includes(word));
+      }
+      return lowerTrimmed.includes(med);
+    });
+    
+    if (matchedMedicine && !added.has(matchedMedicine)) {
+      let qty = 1;
+      
+      // Extract quantity from patterns
+      const qtyMatch = trimmed.match(/[-\u2013]\s*(\d+)$/) || 
+                      trimmed.match(/\b(\d+)\s*$/) ||
+                      trimmed.match(/qty[:\s]*(\d+)/i);
+      
+      if (qtyMatch && parseInt(qtyMatch[1]) <= 10) {
+        qty = parseInt(qtyMatch[1]);
+      }
+      
+      // Proper case the medicine name
+      const properName = matchedMedicine.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      found.push({
+        name: properName,
+        quantity: qty,
+        price: '₹50',
+        availability: 'In Stock'
+      });
+      added.add(matchedMedicine);
     }
   });
-
-  return found;
+  
+  return found.length > 0 ? found : [{
+    name: 'Manual Entry Required',
+    quantity: 0,
+    price: '',
+    availability: 'Please add medicines manually'
+  }];
 }
 
 module.exports = router;

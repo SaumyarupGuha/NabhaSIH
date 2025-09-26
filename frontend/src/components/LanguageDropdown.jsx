@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Globe, Search } from 'lucide-react';
-import { LANGUAGE_CONFIG, SUPPORTED_LANGUAGES, setDocumentLanguage } from '../utils/languageUtils';
+import { translationService } from '../lib/translationService';
 
 export const LanguageDropdown = () => {
   const { i18n } = useTranslation();
@@ -9,12 +9,11 @@ export const LanguageDropdown = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
 
-  const languages = SUPPORTED_LANGUAGES.map(code => ({
-    code,
-    name: LANGUAGE_CONFIG[code].name,
-    flag: LANGUAGE_CONFIG[code].flag,
-    native: LANGUAGE_CONFIG[code].nativeName
-  }));
+  const languages = [
+    { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
+    { code: 'hi', name: 'Hindi', flag: '🇮🇳', native: 'हिंदी' },
+    { code: 'pa', name: 'Punjabi', flag: '🇮🇳', native: 'ਪੰਜਾਬੀ' }
+  ];
 
   const filteredLanguages = languages.filter(lang => 
     lang.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -23,27 +22,19 @@ export const LanguageDropdown = () => {
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
-  const translateContent = async (targetLang) => {
-    if (SUPPORTED_LANGUAGES.includes(targetLang)) {
-      i18n.changeLanguage(targetLang);
-      setDocumentLanguage(targetLang);
-      return;
-    }
-  };
-
-  const changeLanguage = async (langCode) => {
-    if (SUPPORTED_LANGUAGES.includes(langCode)) {
-      await translateContent(langCode);
-      localStorage.setItem('selectedLanguage', langCode);
-      setIsOpen(false);
-      setSearchTerm('');
-    }
+  const changeLanguage = (langCode) => {
+    setIsTranslating(true);
+    i18n.changeLanguage(langCode);
+    localStorage.setItem('selectedLanguage', langCode);
+    setIsOpen(false);
+    setSearchTerm('');
+    setTimeout(() => setIsTranslating(false), 300);
   };
 
   useEffect(() => {
     const savedLang = localStorage.getItem('selectedLanguage');
-    if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang)) {
-      translateContent(savedLang);
+    if (savedLang && ['en', 'hi', 'pa'].includes(savedLang)) {
+      i18n.changeLanguage(savedLang);
     }
   }, []);
 

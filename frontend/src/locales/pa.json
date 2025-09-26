@@ -55,5 +55,31 @@
     "doctor": "ਆਪਣੇ ਮਰੀਜ਼ਾਂ ਅਤੇ ਸਲਾਹ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ",
     "pharmacist": "ਦਵਾਈ ਦੇ ਆਰਡਰ ਅਤੇ ਇਨਵੈਂਟਰੀ ਨੂੰ ਸੰਭਾਲੋ",
     "admin": "ਪੂਰੇ ਸਿਹਤ ਪਲੇਟਫਾਰਮ ਦੀ ਨਿਗਰਾਨੀ ਕਰੋ"
+  },
+  "pharmacy": {
+    "title": "ਦਵਾਈ ਦੀਆਂ ਦੁਕਾਨਾਂ",
+    "subtitle": "ਦਵਾਈ ਡਿਲੀਵਰੀ ਲਈ ਨਾਭਾ ਅਤੇ ਆਸਪਾਸ ਦੇ ਕੇਤਰਾਂ ਵਿੱਚ ਸਥਾਨਕ ਦਵਾਈ ਦੀਆਂ ਦੁਕਾਨਾਂ ਲੱਭੋ",
+    "searchPlaceholder": "ਦਵਾਈਆਂ ਜਾਂ ਦਵਾਈ ਦੀ ਦੁਕਾਨ ਦਾ ਨਾਂ ਲੱਭੋ...",
+    "uploadPrescription": "ਪਰਚਾ ਅਪਲੋਡ ਕਰੋ",
+    "emergencyOrder": "ਐਮਰਜੈਂਸੀ ਆਰਡਰ",
+    "localPharmacies": "ਸਥਾਨਕ ਦਵਾਈ ਦੁਕਾਨਾਂ",
+    "pharmaciesAvailable": "ਦਵਾਈ ਦੁਕਾਨਾਂ ਉਪਲਬਧ",
+    "quickMedicineOrder": "ਤੁਰੰਤ ਦਵਾਈ ਆਰਡਰ",
+    "orderCommonMedicines": "ਆਮ ਦਵਾਈਆਂ ਤੁਰੰਤ ਆਰਡਰ ਕਰੋ",
+    "viewCart": "ਕਾਰਟ ਵੇਖੋ",
+    "checkout": "ਅਤੇ ਚੈਕਆਉਟ",
+    "emergencyMedicine": "ਐਮਰਜੈਂਸੀ ਦਵਾਈ",
+    "emergencyDelivery": "24/7 ਐਮਰਜੈਂਸੀ ਦਵਾਈ ਡਿਲੀਵਰੀ",
+    "emergencyText": "ਤੁਰੰਤ ਦਵਾਈਆਂ ਦੀ ਲੋੜ ਹੈ? ਤੁਰੰਤ ਸਹਾਇਤਾ ਲਈ ਸਾਡੀ ਐਮਰਜੈਂਸੀ ਹਾਟਲਾਈਨ ਤੇ ਕਾਲ ਕਰੋ।",
+    "callEmergency": "ਐਮਰਜੈਂਸੀ ਕਾਲ ਕਰੋ: 108",
+    "orderMedicines": "ਦਵਾਈਆਂ ਆਰਡਰ ਕਰੋ",
+    "callNow": "ਹੁਣ ਕਾਲ ਕਰੋ",
+    "getDirections": "ਦਿਸ਼ਾ ਪ੍ਰਾਪਤ ਕਰੋ",
+    "inStock": "ਸਟਾਕ ਵਿੱਚ",
+    "outOfStock": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
+    "limitedStock": "ਸੀਮਤ ਸਟਾਕ",
+    "add": "ਜੋੜੋ",
+    "open24x7": "24/7 ਖੁੱਲਾ",
+    "items": "ਆਈਟਮਾਂ"
   }
 }

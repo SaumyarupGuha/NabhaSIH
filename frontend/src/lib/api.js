@@ -1,10 +1,6 @@
 import axios from 'axios';
 
-// Ensure API URL always has /api suffix
-let API_BASE_URL = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
-if (!API_BASE_URL.endsWith('/api')) {
-  API_BASE_URL = API_BASE_URL.replace(/\/$/, '') + '/api';
-}
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').trim();
 console.log('API Base URL:', API_BASE_URL);
 
 const api = axios.create({
@@ -20,12 +16,6 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log('Making API request:', {
-    method: config.method?.toUpperCase(),
-    url: config.url,
-    baseURL: config.baseURL,
-    fullURL: `${config.baseURL}${config.url}`
-  });
   return config;
 });
 
@@ -52,10 +42,7 @@ export const appointmentAPI = {
   getAppointments: () => api.get('/appointments'),
   bookAppointment: (data) => api.post('/appointments', data),
   updateStatus: (id, status) => api.patch(`/appointments/${id}/status`, { status }),
-  startConsultation: (id) => api.patch(`/appointments/${id}/start`),
-  completeConsultation: (id, data) => api.patch(`/appointments/${id}/complete`, data),
-  getDoctors: (params) => api.get('/appointments/doctors', { params }),
-  getQueue: () => api.get('/appointments/queue'),
+  getDoctors: () => api.get('/appointments/doctors'),
 };
 
 export const prescriptionAPI = {
@@ -74,16 +61,6 @@ export const userAPI = {
   updateProfile: (data) => api.patch('/users/profile', data),
   getUsers: (params) => api.get('/users', { params }),
   verifyUser: (id) => api.patch(`/users/${id}/verify`),
-};
-
-export const videoCallAPI = {
-  startCall: (patientPhone) => {
-    console.log('Starting call with patient phone:', patientPhone);
-    console.log('API Base URL:', API_BASE_URL);
-    return api.post('/video-calls/start', { patientPhone });
-  },
-  respondToCall: (callId, response) => api.post('/video-calls/respond', { callId, response }),
-  endCall: (callId) => api.post('/video-calls/end', { callId }),
 };
 
 export default api;
