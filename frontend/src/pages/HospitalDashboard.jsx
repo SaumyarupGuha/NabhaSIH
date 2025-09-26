@@ -1,30 +1,147 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
+import { videoCallAPI } from '../lib/api';
+import io from 'socket.io-client';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Textarea } from '../components/ui/Textarea';
-import { LoadingSkeleton } from '../components/LoadingSkeleton';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { DoctorAlerts } from '../components/DoctorAlerts';
 import { FloatingAlerts } from '../components/FloatingAlerts';
+import { DoctorQueue } from '../components/DoctorQueue';
 import {
   Users, Calendar, FileText, Pill, Clock, Phone, Stethoscope,
-  CheckCircle, Plus, Search, Eye, Edit
+  CheckCircle, Plus, Search, Eye, Edit, Video
 } from 'lucide-react';
 
 export default function HospitalDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [patientPhone, setPatientPhone] = useState('');
+  const [isStartingCall, setIsStartingCall] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [availablePatients, setAvailablePatients] = useState([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Get current user from localStorage or context
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    setCurrentUser(user);
-    // Simulate loading time
-    setTimeout(() => setLoading(false), 1000);
-  }, []);
+    const initializeDashboard = async () => {
+      // Get current user from localStorage or context
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setCurrentUser(user);
+      
+      // Load available patients
+      await loadPatients();
+      
+      // Initialize socket for video calls
+      if (user.id || user._id) {
+        let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
+        // Remove /api suffix for socket connection
+        socketUrl = socketUrl.replace('/api', '');
+        console.log('Socket URL:', socketUrl);
+        const newSocket = io(socketUrl);
+        setSocket(newSocket);
+        
+        const userId = user.id || user._id;
+        console.log('Doctor joining room:', `doctor_${userId}`);
+        
+        newSocket.on('connect', () => {
+          console.log('Doctor socket connected');
+          newSocket.emit('joinDoctorRoom', userId);
+        });
+        
+        newSocket.on('callResponse', (data) => {
+          if (data.response === 'accept') {
+            localStorage.setItem('currentCallId', data.callId);
+            navigate(`/video-room/${data.roomId}`);
+          } else {
+            alert('Patient declined the call');
+          }
+          setIsStartingCall(false);
+        });
+      }
+      
+      setLoading(false);
+    };
+    
+    initializeDashboard();
+    
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [navigate, socket]);
+  
+  const startVideoCall = async () => {
+    if (!patientPhone.trim()) {
+      alert('Please enter a patient phone number');
+      return;
+    }
+    
+    setIsStartingCall(true);
+    console.log('Starting video call with patient:', patientPhone);
+    
+    try {
+      const response = await videoCallAPI.startCall(patientPhone.trim());
+      console.log('Video call response:', response);
+      const data = response.data;
+      
+      if (data.success) {
+        localStorage.setItem('currentCallId', data.callId);
+        alert(`Call initiated to ${data.patient.name}. Waiting for patient to accept...`);
+      } else {
+        alert(data.message || 'Failed to start call');
+        setIsStartingCall(false);
+      }
+    } catch (error) {
+      console.error('Error starting call:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
+      let errorMessage = 'Failed to start call';
+      if (error.response?.status === 404) {
+        errorMessage = 'Video call service not available. Please check your connection.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
+      setIsStartingCall(false);
+    }
+  };
+  
+  const loadPatients = async () => {
+    setLoadingPatients(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api'}/video-calls/patients`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePatients(data.patients || []);
+      } else {
+        console.error('Failed to load patients');
+      }
+    } catch (error) {
+      console.error('Error loading patients:', error);
+    }
+    setLoadingPatients(false);
+  };
   const stats = [
     { title: "Today's Patients", value: "42", change: "+8%", icon: Users },
     { title: "Appointments", value: "28", change: "+12%", icon: Calendar },
@@ -109,17 +226,38 @@ export default function HospitalDashboard() {
       <div className="min-h-screen bg-background">
         <Navigation />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <LoadingSkeleton className="h-8 w-64 mb-2" />
-          <LoadingSkeleton className="h-4 w-96 mb-8" />
-          
+          <div className="mb-8">
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
           <div className="grid md:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <LoadingSkeleton key={i} type="card" className="h-24" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
-          
-          <LoadingSkeleton className="h-10 w-full mb-6" />
-          <LoadingSkeleton type="card" className="h-96" />
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-full" />
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -155,9 +293,10 @@ export default function HospitalDashboard() {
         </div>
 
         <Tabs defaultValue="alerts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="alerts">Health Alerts</TabsTrigger>
             <TabsTrigger value="queue">Patient Queue</TabsTrigger>
+            <TabsTrigger value="video-call">Video Call</TabsTrigger>
             <TabsTrigger value="consultations">Consultations</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger> 
             <TabsTrigger value="records">Medical Records</TabsTrigger>
@@ -169,87 +308,81 @@ export default function HospitalDashboard() {
             )}
           </TabsContent>
 
-          <TabsContent value="queue">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+          <TabsContent value="video-call">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Start Video Call</CardTitle>
+                  <CardDescription>Enter patient's phone number to initiate a video consultation</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <CardTitle>Patient Queue</CardTitle>
-                    <CardDescription>Manage today's patient appointments and consultations</CardDescription>
+                    <label className="text-sm font-medium mb-2 block">Patient Phone Number</label>
+                    <Input
+                      placeholder="Enter patient's phone number (e.g., 9876543210)"
+                      value={patientPhone}
+                      onChange={(e) => setPatientPhone(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter 10-digit phone number without country code
+                    </p>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Search patients..." className="pl-10 w-64" />
+                  <Button 
+                    onClick={startVideoCall}
+                    disabled={!patientPhone || isStartingCall}
+                    className="w-full"
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    {isStartingCall ? 'Starting Call...' : 'Start Video Call'}
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Available Patients</CardTitle>
+                      <CardDescription>Click on a patient to use their phone number</CardDescription>
                     </div>
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Walk-in
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={loadPatients}
+                      disabled={loadingPatients}
+                    >
+                      {loadingPatients ? 'Loading...' : 'Refresh'}
                     </Button>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {patientQueue.map((patient) => (
-                    <div key={patient.id} className="border border-border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold text-lg">{patient.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {patient.age} years, {patient.gender} • Village: {patient.village}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getPriorityColor(patient.priority)}>{patient.priority}</Badge>
-                          <Badge className={getStatusColor(patient.status)}>{patient.status}</Badge>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                            <Clock className="h-4 w-4" />
-                            Appointment: {patient.appointmentTime}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Phone className="h-4 w-4" />
-                            {patient.phone}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {availablePatients.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        {loadingPatients ? 'Loading patients...' : 'No patients found. Click Refresh to load.'}
+                      </p>
+                    ) : (
+                      availablePatients.map((patient, index) => (
+                        <div 
+                          key={index}
+                          className="p-2 border rounded cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setPatientPhone(patient.phone)}
+                        >
+                          <div className="font-medium text-sm">{patient.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {patient.phone} • {patient.village}
                           </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium mb-1">Symptoms:</p>
-                          <p className="text-sm text-muted-foreground">{patient.symptoms}</p>
-                        </div>
-                      </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
-                      <div className="flex gap-2">
-                        {patient.status === "waiting" && (
-                          <Button size="sm">
-                            <Stethoscope className="mr-2 h-4 w-4" />
-                            Start Consultation
-                          </Button>
-                        )}
-                        {patient.status === "in-consultation" && (
-                          <Button size="sm">
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Complete Consultation
-                          </Button>
-                        )}
-                        <Button size="sm" variant="outline">
-                          <Eye className="mr-2 h-4 w-4" />
-                          View History
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Phone className="mr-2 h-4 w-4" />
-                          Call Patient
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="queue">
+            <DoctorQueue />
           </TabsContent>
 
           <TabsContent value="consultations">

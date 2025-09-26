@@ -46,39 +46,7 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      animation: {
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'zoom-in': 'zoomIn 0.3s ease-in-out',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        zoomIn: {
-          '0%': { opacity: '0', transform: 'scale(0.95)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-      },
     },
   },
-  plugins: [
-    function({ addUtilities }) {
-      const newUtilities = {
-        '.animate-in': {
-          'animation-fill-mode': 'both',
-        },
-        '.fade-in-0': {
-          'animation-name': 'fadeIn',
-        },
-        '.zoom-in-95': {
-          'animation-name': 'zoomIn',
-        },
-        '.duration-300': {
-          'animation-duration': '300ms',
-        },
-      }
-      addUtilities(newUtilities)
-    }
-  ],
+  plugins: [],
 }
