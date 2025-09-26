@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import io from 'socket.io-client';
@@ -7,6 +7,7 @@ import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { appointmentAPI, prescriptionAPI, videoCallAPI } from '../lib/api';
 import { Calendar, Clock, User, FileText, Pill, Phone, Plus, Eye } from 'lucide-react';
 
@@ -196,8 +197,51 @@ export default function PatientDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">{t('common:loading')}</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="text-center">
+                  <Skeleton className="h-8 w-8 mx-auto mb-2" />
+                  <Skeleton className="h-5 w-32 mx-auto" />
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              <ListSkeleton count={2} />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-8 w-20" />
+              </div>
+              <ListSkeleton count={2} />
+            </div>
+          </div>
         </div>
       </div>
     );

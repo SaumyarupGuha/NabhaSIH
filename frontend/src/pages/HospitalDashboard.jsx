@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
 import { videoCallAPI } from '../lib/api';
@@ -9,6 +9,7 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Textarea } from '../components/ui/Textarea';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { DoctorAlerts } from '../components/DoctorAlerts';
 import { FloatingAlerts } from '../components/FloatingAlerts';
 import { DoctorQueue } from '../components/DoctorQueue';
@@ -24,48 +25,57 @@ export default function HospitalDashboard() {
   const [socket, setSocket] = useState(null);
   const [availablePatients, setAvailablePatients] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Get current user from localStorage or context
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    setCurrentUser(user);
+    const initializeDashboard = async () => {
+      // Get current user from localStorage or context
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setCurrentUser(user);
+      
+      // Load available patients
+      await loadPatients();
+      
+      // Initialize socket for video calls
+      if (user.id || user._id) {
+        let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
+        // Remove /api suffix for socket connection
+        socketUrl = socketUrl.replace('/api', '');
+        console.log('Socket URL:', socketUrl);
+        const newSocket = io(socketUrl);
+        setSocket(newSocket);
+        
+        const userId = user.id || user._id;
+        console.log('Doctor joining room:', `doctor_${userId}`);
+        
+        newSocket.on('connect', () => {
+          console.log('Doctor socket connected');
+          newSocket.emit('joinDoctorRoom', userId);
+        });
+        
+        newSocket.on('callResponse', (data) => {
+          if (data.response === 'accept') {
+            localStorage.setItem('currentCallId', data.callId);
+            navigate(`/video-room/${data.roomId}`);
+          } else {
+            alert('Patient declined the call');
+          }
+          setIsStartingCall(false);
+        });
+      }
+      
+      setLoading(false);
+    };
     
-    // Load available patients
-    loadPatients();
+    initializeDashboard();
     
-    // Initialize socket for video calls
-    if (user.id || user._id) {
-      let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
-      // Remove /api suffix for socket connection
-      socketUrl = socketUrl.replace('/api', '');
-      console.log('Socket URL:', socketUrl);
-      const newSocket = io(socketUrl);
-      setSocket(newSocket);
-      
-      const userId = user.id || user._id;
-      console.log('Doctor joining room:', `doctor_${userId}`);
-      
-      newSocket.on('connect', () => {
-        console.log('Doctor socket connected');
-        newSocket.emit('joinDoctorRoom', userId);
-      });
-      
-      newSocket.on('callResponse', (data) => {
-        if (data.response === 'accept') {
-          localStorage.setItem('currentCallId', data.callId);
-          navigate(`/video-room/${data.roomId}`);
-        } else {
-          alert('Patient declined the call');
-        }
-        setIsStartingCall(false);
-      });
-      
-      return () => {
-        newSocket.disconnect();
-      };
-    }
-  }, [navigate]);
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [navigate, socket]);
   
   const startVideoCall = async () => {
     if (!patientPhone.trim()) {
@@ -210,6 +220,48 @@ export default function HospitalDashboard() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-full" />
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
