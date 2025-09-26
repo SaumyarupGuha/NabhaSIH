@@ -30,7 +30,7 @@ export const PrescriptionUpload = ({ isOpen, onClose }) => {
 
       const token = localStorage.getItem('token');
 
-      const response = await fetch('http://localhost:5000/api/prescriptions/extract-text', {
+      const response = await fetch('https://nabhasih-1.onrender.com/api/prescriptions/extract-text', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

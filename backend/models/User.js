@@ -21,7 +21,13 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    validate: {
+      validator: function(v) {
+        return /^[0-9]{10}$/.test(v); // 10 digit phone number
+      },
+      message: 'Phone number must be 10 digits'
+    }
   },
   password: {
     type: String,
@@ -69,22 +75,13 @@ const userSchema = new mongoose.Schema({
     required: function() { return this.role === 'doctor'; }
   },
   // Pharmacist specific fields
-  selectedPharmacy: {
+  pharmacyName: {
     type: String,
     required: function() { return this.role === 'pharmacist'; }
   },
-  // Pharmacy details from verified list
-  pharmacyName: {
-    type: String,
-    required: false
-  },
   pharmacyAddress: {
     type: String,
-    required: false
-  },
-  pharmacyPhone: {
-    type: String,
-    required: false
+    required: function() { return this.role === 'pharmacist'; }
   },
   isVerified: {
     type: Boolean,
@@ -93,8 +90,7 @@ const userSchema = new mongoose.Schema({
   // Patient-Doctor relationship
   assignedDoctor: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: false
+    ref: 'User'
   },
   avatar: String
 }, {
@@ -106,13 +102,10 @@ userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
   try {
-    console.log('Hashing password for user:', this.phone);
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    console.log('Password hashed successfully for:', this.phone);
     next();
   } catch (error) {
-    console.error('Password hashing error:', error);
     next(error);
   }
 });

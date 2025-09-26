@@ -59,18 +59,18 @@ class HealthDataSimulator {
         timestamp: new Date().toISOString()
       };
 
-      // console.log(`🩺 Sending health data for patient ${patientId}:`, {
-      //   heartRate: payload.heartRate,
-      //   temperature: payload.temperature,
-      //   oxygenSaturation: payload.oxygenSaturation
-      // });
+      console.log(`🩺 Sending health data for patient ${patientId}:`, {
+        heartRate: payload.heartRate,
+        temperature: payload.temperature,
+        oxygenSaturation: payload.oxygenSaturation
+      });
       
       const response = await axios.post(`${this.baseUrl}/api/health-data`, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 15000 // 15 second timeout
       });
       
-      // console.log('✅ Data sent successfully. Alerts created:', response.data.alertsCreated);
+      console.log('✅ Data sent successfully. Alerts created:', response.data.alertsCreated);
       this.dataIndex++;
       
     } catch (error) {

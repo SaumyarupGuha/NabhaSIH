@@ -55,31 +55,5 @@
     "doctor": "Manage your patients and consultations",
     "pharmacist": "Handle medicine orders and inventory",
     "admin": "Oversee the entire healthcare platform"
-  },
-  "pharmacy": {
-    "title": "Pharmacies",
-    "subtitle": "Find local pharmacies in Nabha and surrounding areas for medicine delivery",
-    "searchPlaceholder": "Search medicines or pharmacy name...",
-    "uploadPrescription": "Upload Prescription",
-    "emergencyOrder": "Emergency Order",
-    "localPharmacies": "Local Pharmacies",
-    "pharmaciesAvailable": "pharmacies available",
-    "quickMedicineOrder": "Quick Medicine Order",
-    "orderCommonMedicines": "Order common medicines instantly",
-    "viewCart": "View Cart",
-    "checkout": "& Checkout",
-    "emergencyMedicine": "Emergency Medicine",
-    "emergencyDelivery": "24/7 emergency medicine delivery",
-    "emergencyText": "Need urgent medicines? Call our emergency hotline for immediate assistance.",
-    "callEmergency": "Call Emergency: 108",
-    "orderMedicines": "Order Medicines",
-    "callNow": "Call Now",
-    "getDirections": "Get Directions",
-    "inStock": "In Stock",
-    "outOfStock": "Out of Stock",
-    "limitedStock": "Limited Stock",
-    "add": "Add",
-    "open24x7": "Open 24/7",
-    "items": "items"
   }
 }

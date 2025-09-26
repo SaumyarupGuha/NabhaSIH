@@ -44,6 +44,7 @@ export function Navigation() {
         return [
           ...baseItems,
           { href: "/pharmacy-dashboard", label: t('nav.pharmacyDashboard') },
+          { href: "/pharmacies", label: t('nav.pharmacies') },
         ];
       case "admin":
         return [
