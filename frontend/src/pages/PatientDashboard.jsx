@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import io from 'socket.io-client';
+import IncomingCallModal from '../components/IncomingCallModal';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { appointmentAPI, prescriptionAPI } from '../lib/api';
+import { appointmentAPI, prescriptionAPI, videoCallAPI } from '../lib/api';
 import { Calendar, Clock, User, FileText, Pill, Phone, Plus, Eye } from 'lucide-react';
 
 export default function PatientDashboard() {
@@ -13,6 +15,8 @@ export default function PatientDashboard() {
   const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [socket, setSocket] = useState(null);
   const { t } = useTranslation('patient');
   const navigate = useNavigate();
 
@@ -34,7 +38,86 @@ export default function PatientDashboard() {
     };
 
     fetchData();
+    
+    // Initialize socket for incoming calls
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    console.log('Patient user data:', user);
+    
+    if (user.id || user._id) {
+      let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
+      socketUrl = socketUrl.replace('/api', '');
+      console.log('Patient socket URL:', socketUrl);
+      
+      const newSocket = io(socketUrl, {
+        transports: ['websocket', 'polling']
+      });
+      setSocket(newSocket);
+      
+      const userId = user.id || user._id;
+      console.log('Patient joining room:', `patient_${userId}`);
+      
+      newSocket.on('connect', () => {
+        console.log('✅ Patient socket connected with ID:', newSocket.id);
+        newSocket.emit('joinPatientRoom', userId);
+        console.log('🏠 Patient joined room:', `patient_${userId}`);
+      });
+      
+      newSocket.on('disconnect', () => {
+        console.log('❌ Patient socket disconnected');
+      });
+      
+      newSocket.on('roomJoined', (data) => {
+        console.log('✅ Room joined confirmation:', data);
+      });
+      
+      newSocket.on('incomingCall', (callData) => {
+        console.log('📞 Incoming call received:', callData);
+        alert('Incoming video call from Dr. ' + callData.doctor.name);
+        setIncomingCall(callData);
+      });
+      
+      // Test event listener
+      newSocket.on('test', (data) => {
+        console.log('Test event received:', data);
+      });
+      
+      return () => {
+        console.log('Cleaning up patient socket');
+        newSocket.disconnect();
+      };
+    } else {
+      console.log('No user found, cannot initialize socket');
+    }
   }, []);
+  
+  const handleAcceptCall = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('Patient user data:', user);
+      console.log('Token:', localStorage.getItem('token'));
+      
+      const response = await videoCallAPI.respondToCall(incomingCall.callId, 'accept');
+      const data = response.data;
+      
+      if (data.success) {
+        localStorage.setItem('currentCallId', incomingCall.callId);
+        navigate(`/video-room/${data.roomId}`);
+      }
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      console.error('Error details:', error.response?.data);
+    }
+    setIncomingCall(null);
+  };
+  
+  const handleRejectCall = async () => {
+    try {
+      await videoCallAPI.respondToCall(incomingCall.callId, 'reject');
+    } catch (error) {
+      console.error('Error rejecting call:', error);
+    }
+    setIncomingCall(null);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -136,6 +219,31 @@ export default function PatientDashboard() {
           </p>
         </div>
 
+        {/* Socket Test - Remove in production */}
+        <Card className="mb-4 border-dashed border-2 border-yellow-300 bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Socket Status: {socket?.connected ? '✅ Connected' : '❌ Disconnected'}</p>
+                <p className="text-xs text-muted-foreground">Socket ID: {socket?.id || 'Not connected'}</p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  const user = JSON.parse(localStorage.getItem('user') || '{}');
+                  console.log('Manual test - User ID:', user.id || user._id);
+                  if (socket) {
+                    socket.emit('test', { message: 'Test from patient' });
+                  }
+                }}
+              >
+                Test Socket
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader className="text-center">
@@ -353,6 +461,13 @@ export default function PatientDashboard() {
       <AppointmentModal 
         isOpen={modalOpen} 
         onClose={() => setModalOpen(false)} 
+      />
+      
+      <IncomingCallModal
+        isOpen={!!incomingCall}
+        callData={incomingCall}
+        onAccept={handleAcceptCall}
+        onReject={handleRejectCall}
       />
     </div>
   );

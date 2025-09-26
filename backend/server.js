@@ -13,6 +13,7 @@ const prescriptionRoutes = require('./routes/prescriptions');
 const pharmacyRoutes = require('./routes/pharmacies');
 const healthDataRoutes = require('./routes/healthData');
 const testAlertRoutes = require('./routes/testAlert');
+const videoCallRoutes = require('./routes/videoCalls');
 
 dotenv.config();
 
@@ -33,14 +34,25 @@ app.set('io', io);
 app.use(cors({
   origin: "*",
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: false
 }));
 
 // Handle preflight requests
 app.options('*', cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  if (req.method === 'POST' && req.path.includes('/auth/register')) {
+    console.log('Registration request body keys:', Object.keys(req.body));
+  }
+  next();
+});
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -55,7 +67,35 @@ io.on('connection', (socket) => {
   socket.on('joinDoctorRoom', (doctorId) => {
     socket.join(`doctor_${doctorId}`);
     console.log(`🏠 Doctor ${doctorId} joined room: doctor_${doctorId}`);
-    console.log(`📊 Total rooms:`, socket.rooms);
+  });
+  
+  // Join patient room for video calls
+  socket.on('joinPatientRoom', (patientId) => {
+    const roomName = `patient_${patientId}`;
+    socket.join(roomName);
+    console.log(`🏠 Patient ${patientId} joined room: ${roomName}`);
+    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} members`);
+    
+    // Send confirmation back to patient
+    socket.emit('roomJoined', { room: roomName, patientId });
+  });
+  
+  // Video call signaling
+  socket.on('joinVideoRoom', (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit('userJoined', socket.id);
+  });
+  
+  socket.on('offer', (data) => {
+    socket.to(data.roomId).emit('offer', data);
+  });
+  
+  socket.on('answer', (data) => {
+    socket.to(data.roomId).emit('answer', data);
+  });
+  
+  socket.on('iceCandidate', (data) => {
+    socket.to(data.roomId).emit('iceCandidate', data);
   });
   
   socket.on('disconnect', () => {
@@ -73,6 +113,7 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
 app.use('/api/health-data', healthDataRoutes);
 app.use('/api/test-alert', testAlertRoutes);
+app.use('/api/video-calls', videoCallRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -97,6 +138,9 @@ app.use('/pharmacies', (req, res) => {
 });
 app.use('/health-data', (req, res) => {
   res.redirect(308, `/api/health-data${req.path}`);
+});
+app.use('/video-calls', (req, res) => {
+  res.redirect(308, `/api/video-calls${req.path}`);
 });
 
 server.listen(PORT, () => {
