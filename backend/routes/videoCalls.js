@@ -5,6 +5,27 @@ const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const crypto = require('crypto');
 
+// Get available patients (for testing)
+router.get('/patients', auth, async (req, res) => {
+  try {
+    const patients = await User.find({ role: 'patient' })
+      .select('firstName lastName phone village')
+      .limit(20);
+    
+    res.json({
+      success: true,
+      patients: patients.map(p => ({
+        name: `${p.firstName} ${p.lastName}`,
+        phone: p.phone,
+        village: p.village
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching patients:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Start a video call
 router.post('/start', auth, async (req, res) => {
   try {
@@ -23,11 +44,34 @@ router.post('/start', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only doctors can start calls' });
     }
 
-    // Find patient by phone number
-    const patient = await User.findOne({ phone: patientPhone, role: 'patient' });
+    // Normalize phone number for search
+    const normalizedPhone = patientPhone.replace(/\D/g, ''); // Remove non-digits
+    console.log('Searching for patient with phone:', patientPhone, 'normalized:', normalizedPhone);
+    
+    // Find patient by phone number (try multiple formats)
+    let patient = await User.findOne({ 
+      phone: { $in: [patientPhone, normalizedPhone] }, 
+      role: 'patient' 
+    });
+    
+    // If not found, try searching by the last 10 digits
+    if (!patient && normalizedPhone.length >= 10) {
+      const last10Digits = normalizedPhone.slice(-10);
+      patient = await User.findOne({ 
+        phone: { $regex: last10Digits + '$' }, 
+        role: 'patient' 
+      });
+      console.log('Searching by last 10 digits:', last10Digits);
+    }
+    
     if (!patient) {
+      console.log('No patient found. Checking all patients...');
+      const allPatients = await User.find({ role: 'patient' }).select('phone firstName lastName');
+      console.log('Available patients:', allPatients.map(p => ({ phone: p.phone, name: `${p.firstName} ${p.lastName}` })));
       return res.status(404).json({ message: 'Patient not found with this phone number' });
     }
+    
+    console.log('Found patient:', patient.firstName, patient.lastName, 'Phone:', patient.phone);
 
     // Generate unique room ID
     const roomId = crypto.randomUUID();
@@ -58,8 +102,17 @@ router.post('/start', auth, async (req, res) => {
     
     console.log('Sending call notification to room:', `patient_${patient._id}`);
     console.log('Call data:', callData);
+    console.log('Socket.io instance:', !!io);
+    console.log('Connected sockets:', io.engine.clientsCount);
     
-    io.to(`patient_${patient._id}`).emit('incomingCall', callData);
+    // Send to patient room
+    const roomName = `patient_${patient._id}`;
+    io.to(roomName).emit('incomingCall', callData);
+    
+    // Also broadcast to all connected sockets for testing
+    io.emit('test', { message: 'Test broadcast', patientId: patient._id });
+    
+    console.log('Call notification sent to room:', roomName);
 
     res.json({
       success: true,

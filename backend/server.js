@@ -37,15 +37,31 @@ app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+    ],
     credentials: false,
   })
 );
 
 // Handle preflight requests
 app.options("*", cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body parsing middleware
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  if (req.method === "POST" && req.path.includes("/auth/register")) {
+    console.log("Registration request body keys:", Object.keys(req.body));
+  }
+  next();
+});
 
 // MongoDB connection
 mongoose
@@ -65,8 +81,17 @@ io.on("connection", (socket) => {
 
   // Join patient room for video calls
   socket.on("joinPatientRoom", (patientId) => {
-    socket.join(`patient_${patientId}`);
-    console.log(`🏠 Patient ${patientId} joined room: patient_${patientId}`);
+    const roomName = `patient_${patientId}`;
+    socket.join(roomName);
+    console.log(`🏠 Patient ${patientId} joined room: ${roomName}`);
+    console.log(
+      `📊 Room ${roomName} now has ${
+        io.sockets.adapter.rooms.get(roomName)?.size || 0
+      } members`
+    );
+
+    // Send confirmation back to patient
+    socket.emit("roomJoined", { room: roomName, patientId });
   });
 
   // Video call signaling
@@ -130,11 +155,8 @@ app.use("/pharmacies", (req, res) => {
 app.use("/health-data", (req, res) => {
   res.redirect(308, `/api/health-data${req.path}`);
 });
-app.use("/consultations", (req, res) => {
-  res.redirect(308, `/api/consultations${req.path}`);
-});
-app.use("/online-prescriptions", (req, res) => {
-  res.redirect(308, `/api/online-prescriptions${req.path}`);
+app.use("/video-calls", (req, res) => {
+  res.redirect(308, `/api/video-calls${req.path}`);
 });
 
 server.listen(PORT, () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Navigation } from "../components/Navigation";
@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { Skeleton, ListSkeleton } from "../components/ui/Skeleton";
 import { appointmentAPI, prescriptionAPI, videoCallAPI } from "../lib/api";
 import IncomingCallModal from "../components/IncomingCallModal";
 import { HealthChatbot } from "../components/HealthChatbot";
@@ -60,34 +61,54 @@ export default function PatientDashboard() {
     fetchData();
 
     // Initialize socket for incoming calls
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      if (user.id || user._id) {
-        const socketUrl =
-          import.meta.env.VITE_API_URL?.replace("/api", "") ||
-          "http://localhost:5000";
-        const newSocket = io(socketUrl);
-        setSocket(newSocket);
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    console.log("Patient user data:", user);
 
-        const userId = user.id || user._id;
-        console.log("Patient joining room:", `patient_${userId}`);
+    if (user.id || user._id) {
+      let socketUrl =
+        import.meta.env.VITE_API_URL || "https://nabhasih-1.onrender.com/api";
+      socketUrl = socketUrl.replace("/api", "");
+      console.log("Patient socket URL:", socketUrl);
 
-        newSocket.on("connect", () => {
-          console.log("Patient socket connected");
-          newSocket.emit("joinPatientRoom", userId);
-        });
+      const newSocket = io(socketUrl, {
+        transports: ["websocket", "polling"],
+      });
+      setSocket(newSocket);
 
-        newSocket.on("incomingCall", (callData) => {
-          console.log("Incoming call received:", callData);
-          setIncomingCall(callData);
-        });
+      const userId = user.id || user._id;
+      console.log("Patient joining room:", `patient_${userId}`);
 
-        return () => {
-          newSocket.disconnect();
-        };
-      }
-    } catch (error) {
-      console.error("Socket initialization error:", error);
+      newSocket.on("connect", () => {
+        console.log("✅ Patient socket connected with ID:", newSocket.id);
+        newSocket.emit("joinPatientRoom", userId);
+        console.log("🏠 Patient joined room:", `patient_${userId}`);
+      });
+
+      newSocket.on("disconnect", () => {
+        console.log("❌ Patient socket disconnected");
+      });
+
+      newSocket.on("roomJoined", (data) => {
+        console.log("✅ Room joined confirmation:", data);
+      });
+
+      newSocket.on("incomingCall", (callData) => {
+        console.log("📞 Incoming call received:", callData);
+        alert("Incoming video call from Dr. " + callData.doctor.name);
+        setIncomingCall(callData);
+      });
+
+      // Test event listener
+      newSocket.on("test", (data) => {
+        console.log("Test event received:", data);
+      });
+
+      return () => {
+        console.log("Cleaning up patient socket");
+        newSocket.disconnect();
+      };
+    } else {
+      console.log("No user found, cannot initialize socket");
     }
   }, []);
 
@@ -248,8 +269,51 @@ export default function PatientDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="text-center">
+                  <Skeleton className="h-8 w-8 mx-auto mb-2" />
+                  <Skeleton className="h-5 w-32 mx-auto" />
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              <ListSkeleton count={2} />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-8 w-20" />
+              </div>
+              <ListSkeleton count={2} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -268,6 +332,36 @@ export default function PatientDashboard() {
           <h1 className="text-3xl font-bold mb-2">{t("dashboard.title")}</h1>
           <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
         </div>
+
+        {/* Socket Test - Remove in production */}
+        <Card className="mb-4 border-dashed border-2 border-yellow-300 bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">
+                  Socket Status:{" "}
+                  {socket?.connected ? "✅ Connected" : "❌ Disconnected"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Socket ID: {socket?.id || "Not connected"}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const user = JSON.parse(localStorage.getItem("user") || "{}");
+                  console.log("Manual test - User ID:", user.id || user._id);
+                  if (socket) {
+                    socket.emit("test", { message: "Test from patient" });
+                  }
+                }}
+              >
+                Test Socket
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
