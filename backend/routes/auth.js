@@ -37,25 +37,30 @@ router.post('/register', [
       return res.status(400).json({ message: errorMessage, errors: errors.array() });
     }
 
-    const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, availableDays, consultationFee, pharmacyName, pharmacyAddress } = req.body;
+    const {
+      firstName, lastName, email, phone, password,
+      role, village, age, gender,
+      license, specialization, hospital, availableDays, consultationFee,
+      pharmacyName, pharmacyAddress
+    } = req.body;
 
     // Normalize phone number
-    const normalizedPhone = phone.replace(/\D/g, ''); // Remove non-digits
-    
+    const normalizedPhone = phone.replace(/\D/g, '');
+
     // Check if user already exists
-    const existingUser = await User.findOne({ 
+    const existingUser = await User.findOne({
       $or: [
         { phone: normalizedPhone },
         { phone: phone },
         ...(email ? [{ email: email.toLowerCase() }] : [])
       ]
     });
-    
+
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists with this phone number or email' });
     }
 
-    // Create user
+    // Create user object
     const userData = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -68,7 +73,7 @@ router.post('/register', [
     if (email && email.trim()) {
       userData.email = email.toLowerCase().trim();
     }
-    
+
     if (role === 'patient') {
       userData.age = parseInt(age);
       userData.gender = gender;
@@ -76,8 +81,8 @@ router.post('/register', [
       userData.license = license.trim();
       userData.specialization = specialization.trim();
       userData.hospital = hospital.trim();
-      userData.availableDays = availableDays;
-      userData.consultationFee = parseFloat(consultationFee);
+      userData.availableDays = availableDays || [];
+      userData.consultationFee = parseFloat(consultationFee) || 0;
     } else if (role === 'pharmacist') {
       userData.pharmacyName = pharmacyName.trim();
       userData.pharmacyAddress = pharmacyAddress.trim();
@@ -103,25 +108,29 @@ router.post('/register', [
     });
   } catch (error) {
     console.error('Registration error:', error);
-    
+
     // Handle MongoDB validation errors
     if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ 
-        message: validationErrors.join(', '),
-        errors: validationErrors
-      });
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return res.status(400).json({ errors });
     }
-    
+
     // Handle duplicate key errors
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({ 
-        message: `${field === 'phone' ? 'Phone number' : field} already exists`
+      return res.status(400).json({
+        errors: [{
+          field,
+          message: `${field === 'phone' ? 'Phone number' : field} already exists`
+        }]
       });
     }
-    
-    res.status(500).json({ 
+
+    // Fallback
+    res.status(500).json({
       message: 'Server error during registration',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -142,14 +151,17 @@ router.post('/login', [
 
     const { contact, password, role } = req.body;
 
+    // Normalize phone for login
+    const normalizedContact = contact.replace(/\D/g, '');
+
     // Find user by phone or email
     const user = await User.findOne({
       $and: [
         { role },
         {
           $or: [
-            { phone: contact },
-            { email: contact }
+            { phone: normalizedContact },
+            { email: contact.toLowerCase() }
           ]
         }
       ]

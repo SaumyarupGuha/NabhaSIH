@@ -20,7 +20,6 @@ export default function ConsultationsPage() {
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedAvailability, setSelectedAvailability] = useState('');
   const [bookingData, setBookingData] = useState({
-    date: '',
     time: '',
     type: 'video',
     symptoms: '',
@@ -188,15 +187,23 @@ export default function ConsultationsPage() {
     e.preventDefault();
     if (!selectedDoctor) return;
 
+    const appointmentData = {
+      doctorId: selectedDoctor._id,
+      date: selectedDate.toISOString().split('T')[0],
+      time: bookingData.time,
+      type: bookingData.type,
+      symptoms: bookingData.symptoms
+    };
+
+    console.log('Booking data:', appointmentData);
+
     try {
-      await appointmentAPI.bookAppointment({
-        doctorId: selectedDoctor._id,
-        ...bookingData
-      });
+      await appointmentAPI.bookAppointment(appointmentData);
       alert('Appointment booked successfully!');
-      setBookingData({ date: '', time: '', type: 'video', symptoms: '', phone: '' });
+      setBookingData({ time: '', type: 'video', symptoms: '', phone: '' });
       setSelectedDoctor(null);
     } catch (error) {
+      console.error('Booking error:', error.response?.data);
       alert('Error booking appointment: ' + (error.response?.data?.message || 'Please try again'));
     }
   };
@@ -515,7 +522,17 @@ export default function ConsultationsPage() {
                 {selectedDoctor ? (
                   <form onSubmit={handleBooking}>
                     <div className="space-y-4">
-
+                      <div className="bg-muted p-3 rounded-md">
+                        <p className="text-sm font-medium">Selected Date:</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedDate.toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                      </div>
 
                       <div>
                         <Label htmlFor="time">Preferred Time</Label>

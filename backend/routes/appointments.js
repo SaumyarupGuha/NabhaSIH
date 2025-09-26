@@ -41,15 +41,25 @@ router.post('/', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { doctorId, date, time, type, symptoms } = req.body;
+    console.log('Booking request data:', { doctorId, date, time, type, symptoms });
 
-    // Verify doctor exists
+    // Verify doctor exists and is available on the selected day
     const doctor = await User.findOne({ _id: doctorId, role: 'doctor' });
     if (!doctor) {
       return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    // Check if doctor is available on the selected day
+    const selectedDate = new Date(date);
+    const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+    
+    if (!doctor.availableDays || !doctor.availableDays.includes(dayName)) {
+      return res.status(400).json({ message: 'Doctor is not available on this day' });
     }
 
     // Check if slot is available
@@ -76,7 +86,7 @@ router.post('/', [
     await appointment.save();
     
     const populatedAppointment = await Appointment.findById(appointment._id)
-      .populate('doctor', 'firstName lastName specialization hospital');
+      .populate('doctor', 'firstName lastName specialization hospital consultationFee');
 
     res.status(201).json({
       message: 'Appointment booked successfully',
@@ -88,10 +98,164 @@ router.post('/', [
   }
 });
 
+// Start consultation
+router.patch('/:id/start', auth, authorize('doctor'), async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('patient', 'firstName lastName phone village age gender');
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (appointment.doctor.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    appointment.status = 'in-progress';
+    await appointment.save();
+
+    res.json({ message: 'Consultation started', appointment });
+  } catch (error) {
+    console.error('Start consultation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// End consultation with prescription
+router.patch('/:id/complete', [
+  auth,
+  authorize('doctor'),
+  body('diagnosis').notEmpty().withMessage('Diagnosis is required'),
+  body('medicines').isArray().withMessage('Medicines must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { diagnosis, medicines, notes } = req.body;
+    const appointment = await Appointment.findById(req.params.id);
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (appointment.doctor.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Create prescription
+    const Prescription = require('../models/Prescription');
+    const prescription = new Prescription({
+      patient: appointment.patient,
+      doctor: req.user._id,
+      appointment: appointment._id,
+      diagnosis,
+      medicines,
+      notes
+    });
+
+    await prescription.save();
+
+    // Update appointment
+    appointment.status = 'completed';
+    appointment.prescription = prescription._id;
+    await appointment.save();
+
+    res.json({ 
+      message: 'Consultation completed successfully', 
+      appointment,
+      prescription 
+    });
+  } catch (error) {
+    console.error('Complete consultation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Start consultation
+router.patch('/:id/start', auth, authorize('doctor'), async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('patient', 'firstName lastName phone village age gender');
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (appointment.doctor.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    appointment.status = 'in-progress';
+    await appointment.save();
+
+    res.json({ message: 'Consultation started', appointment });
+  } catch (error) {
+    console.error('Start consultation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Complete consultation with prescription
+router.patch('/:id/complete', [
+  auth,
+  authorize('doctor'),
+  body('diagnosis').notEmpty().withMessage('Diagnosis is required'),
+  body('medicines').isArray().withMessage('Medicines must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { diagnosis, medicines, notes } = req.body;
+    const appointment = await Appointment.findById(req.params.id);
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (appointment.doctor.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Create prescription
+    const Prescription = require('../models/Prescription');
+    const prescription = new Prescription({
+      patient: appointment.patient,
+      doctor: req.user._id,
+      appointment: appointment._id,
+      diagnosis,
+      medicines,
+      notes
+    });
+
+    await prescription.save();
+
+    // Update appointment
+    appointment.status = 'completed';
+    appointment.prescription = prescription._id;
+    await appointment.save();
+
+    res.json({ 
+      message: 'Consultation completed successfully', 
+      appointment,
+      prescription 
+    });
+  } catch (error) {
+    console.error('Complete consultation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update appointment status
 router.patch('/:id/status', [
   auth,
-  body('status').isIn(['scheduled', 'completed', 'cancelled', 'no-show']).withMessage('Invalid status')
+  body('status').isIn(['scheduled', 'in-progress', 'completed', 'cancelled', 'no-show']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
     const { status } = req.body;
@@ -119,17 +283,64 @@ router.patch('/:id/status', [
   }
 });
 
-// Get available doctors
+// Get available doctors with filters
 router.get('/doctors', async (req, res) => {
   try {
-    const doctors = await User.find({ 
-      role: 'doctor', 
-      isVerified: true 
-    }).select('firstName lastName specialization hospital consultationFee availableDays');
+    const { day, verified } = req.query;
+    
+    let query = { role: 'doctor' };
+    
+    // Filter by verification status
+    if (verified === 'true') {
+      query.isVerified = true;
+    } else if (verified === 'false') {
+      query.isVerified = false;
+    }
+    
+    let doctors = await User.find(query)
+      .select('firstName lastName specialization hospital consultationFee availableDays isVerified');
+    
+    // Filter by available day
+    if (day) {
+      doctors = doctors.filter(doctor => 
+        doctor.availableDays && doctor.availableDays.includes(day)
+      );
+    }
 
     res.json(doctors);
   } catch (error) {
     console.error('Get doctors error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get doctor's queue (for doctor dashboard)
+router.get('/queue', auth, authorize('doctor'), async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const appointments = await Appointment.find({
+      doctor: req.user._id,
+      date: { $gte: today },
+      status: { $in: ['scheduled', 'in-progress'] }
+    })
+    .populate('patient', 'firstName lastName phone village age gender')
+    .sort({ date: 1, time: 1 });
+
+    // Group by date
+    const queue = appointments.reduce((acc, appointment) => {
+      const dateKey = appointment.date.toISOString().split('T')[0];
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(appointment);
+      return acc;
+    }, {});
+
+    res.json(queue);
+  } catch (error) {
+    console.error('Get queue error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

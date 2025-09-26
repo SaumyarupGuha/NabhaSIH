@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs'
 import { Textarea } from '../components/ui/Textarea';
 import { DoctorAlerts } from '../components/DoctorAlerts';
 import { FloatingAlerts } from '../components/FloatingAlerts';
+import { DoctorQueue } from '../components/DoctorQueue';
 import {
   Users, Calendar, FileText, Pill, Clock, Phone, Stethoscope,
   CheckCircle, Plus, Search, Eye, Edit, Video
@@ -329,86 +330,7 @@ export default function HospitalDashboard() {
           </TabsContent>
 
           <TabsContent value="queue">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Patient Queue</CardTitle>
-                    <CardDescription>Manage today's patient appointments and consultations</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Search patients..." className="pl-10 w-64" />
-                    </div>
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Walk-in
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {patientQueue.map((patient) => (
-                    <div key={patient.id} className="border border-border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold text-lg">{patient.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {patient.age} years, {patient.gender} • Village: {patient.village}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getPriorityColor(patient.priority)}>{patient.priority}</Badge>
-                          <Badge className={getStatusColor(patient.status)}>{patient.status}</Badge>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                            <Clock className="h-4 w-4" />
-                            Appointment: {patient.appointmentTime}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Phone className="h-4 w-4" />
-                            {patient.phone}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium mb-1">Symptoms:</p>
-                          <p className="text-sm text-muted-foreground">{patient.symptoms}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        {patient.status === "waiting" && (
-                          <Button size="sm">
-                            <Stethoscope className="mr-2 h-4 w-4" />
-                            Start Consultation
-                          </Button>
-                        )}
-                        {patient.status === "in-consultation" && (
-                          <Button size="sm">
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Complete Consultation
-                          </Button>
-                        )}
-                        <Button size="sm" variant="outline">
-                          <Eye className="mr-2 h-4 w-4" />
-                          View History
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Phone className="mr-2 h-4 w-4" />
-                          Call Patient
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <DoctorQueue />
           </TabsContent>
 
           <TabsContent value="consultations">
