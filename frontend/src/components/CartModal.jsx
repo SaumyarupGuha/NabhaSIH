@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Button } from './ui/Button';
+import { OrderSuccessModal } from './OrderSuccessModal';
 import { X, Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
 
 export const CartModal = () => {
@@ -15,21 +16,127 @@ export const CartModal = () => {
   } = useCart();
   
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successOrderData, setSuccessOrderData] = useState(null);
   const [orderData, setOrderData] = useState({
     name: '',
     phone: '',
     address: '',
     paymentMethod: 'cod'
   });
+  const [closestPharmacies, setClosestPharmacies] = useState([]);
+  const [loadingPharmacies, setLoadingPharmacies] = useState(false);
 
-  if (!isCartOpen) return null;
+  if (!isCartOpen && !showSuccessModal) return null;
+
+  const getCustomerCoordinates = async (address) => {
+    console.log('🔍 CartModal geocoding address:', address);
+    
+    try {
+      const url = `http://localhost:5000/api/google-maps/geocode?address=${encodeURIComponent(address + ', Punjab, India')}`;
+      console.log('📡 CartModal geocoding URL:', url);
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('📍 CartModal geocoding response:', data);
+      
+      if (data.status === 'OK' && data.results.length > 0) {
+        const coords = {
+          lat: data.results[0].geometry.location.lat,
+          lng: data.results[0].geometry.location.lng
+        };
+        console.log('✅ CartModal successfully geocoded to:', coords);
+        return coords;
+      } else {
+        console.error('❌ CartModal geocoding failed:', data.status, data.error_message);
+        throw new Error(`Geocoding failed: ${data.status}`);
+      }
+    } catch (error) {
+      console.error('❌ CartModal geocoding error:', error);
+      throw error; // Don't fallback, let the calling function handle it
+    }
+  };
+
+  const findClosestPharmacies = async (address) => {
+    if (!address.trim()) return;
+    
+    setLoadingPharmacies(true);
+    try {
+      const userCoords = await getCustomerCoordinates(address);
+      
+      // Get verified pharmacies
+      const pharmaciesResponse = await fetch('http://localhost:5000/api/verified-pharmacies');
+      const pharmaciesData = await pharmaciesResponse.json();
+      
+      if (pharmaciesData.success) {
+        // Calculate distances to all pharmacies
+        const pharmaciesWithDistance = await Promise.all(
+          pharmaciesData.data.map(async (pharmacy) => {
+            try {
+              console.log(`🏥 Calculating distance to ${pharmacy.name}:`, {
+                fromCoords: userCoords,
+                toCoords: pharmacy.coordinates,
+                fromAddress: address,
+                toAddress: pharmacy.address
+              });
+              
+              const response = await fetch('http://localhost:5000/api/distance/calculate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  fromAddress: address,
+                  toAddress: pharmacy.address,
+                  fromCoords: userCoords,
+                  toCoords: pharmacy.coordinates
+                })
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.data) {
+                  console.log(`✅ ${pharmacy.name}: ${data.data.distance.toFixed(2)}km, ${Math.round(data.data.duration)}min`);
+                  return {
+                    ...pharmacy,
+                    distance: data.data.distance,
+                    duration: data.data.duration
+                  };
+                }
+              }
+            } catch (error) {
+              console.error(`Error calculating distance for ${pharmacy.name}:`, error);
+            }
+            
+            return {
+              ...pharmacy,
+              distance: 999,
+              duration: 999
+            };
+          })
+        );
+        
+        // Sort by distance and get top 2
+        const sortedPharmacies = pharmaciesWithDistance
+          .filter(p => p.distance < 999)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 2);
+          
+        setClosestPharmacies(sortedPharmacies);
+      }
+    } catch (error) {
+      console.error('Error finding closest pharmacies:', error);
+    } finally {
+      setLoadingPharmacies(false);
+    }
+  };
 
   const handleCheckout = async (e) => {
     e.preventDefault();
     
+    // Find closest pharmacies when placing order
+    await findClosestPharmacies(orderData.address);
+    
     try {
       const orderPayload = {
-        orderType: 'patient',
         items: cartItems.map(item => ({
           medicineName: item.name || item.medicineName || 'Unknown Medicine',
           quantity: item.quantity || 1,
@@ -41,11 +148,14 @@ export const CartModal = () => {
           phone: orderData.phone,
           address: orderData.address
         },
-        deliveryType: 'delivery',
         deliveryAddress: orderData.address,
-        coordinates: { lat: 30.7046, lng: 76.1512 },
-        orderedBy: '68ccf820249ad6de413eab2f', // Valid patient ObjectId
-        assignedPharmacy: '68ccf820249ad6de413eab2e' // Explicitly assign to your pharmacy
+        coordinates: await getCustomerCoordinates(orderData.address).catch(error => {
+          console.error('Failed to get coordinates:', error);
+          alert('Could not find your location. Please enter a more specific address.');
+          throw error;
+        }),
+        assignedPharmacy: closestPharmacies[0]?.name || 'Punjab Medical Store',
+        orderedBy: '68ccf820249ad6de413eab2f'
       };
 
       const response = await fetch('http://localhost:5000/api/orders', {
@@ -55,12 +165,27 @@ export const CartModal = () => {
       });
 
       const result = await response.json();
+      console.log('📦 Order response:', result);
       
       if (result.success) {
-        alert(`Order placed successfully! Order #${result.data.orderNumber}\nEstimated delivery: 30-45 minutes`);
+        const avgDeliveryTime = closestPharmacies.length > 0 
+          ? Math.round(closestPharmacies.reduce((sum, p) => sum + p.duration, 0) / closestPharmacies.length)
+          : 30;
+          
+        const orderData = {
+          orderNumber: result.data.orderNumber,
+          totalAmount: result.data.totalAmount,
+          estimatedDeliveryTime: result.data.estimatedDeliveryTime || result.estimatedDeliveryTime || `${avgDeliveryTime} min`,
+          deliveryAddress: result.data.deliveryAddress,
+          customerInfo: result.data.customerInfo,
+          closestPharmacies: closestPharmacies
+        };
+        console.log('✅ Success modal data:', orderData);
+        setSuccessOrderData(orderData);
+        setShowSuccessModal(true);
         clearCart();
-        setIsCartOpen(false);
         setShowCheckout(false);
+        // Don't close cart modal yet - let success modal handle it
       } else {
         alert('Error placing order: ' + result.message);
       }
@@ -70,8 +195,21 @@ export const CartModal = () => {
     }
   };
 
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    setSuccessOrderData(null);
+    setIsCartOpen(false); // Close cart modal after success modal closes
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <>
+      <OrderSuccessModal 
+        isOpen={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        orderData={successOrderData}
+      />
+      {isCartOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -246,6 +384,22 @@ export const CartModal = () => {
                   <Button type="submit" className="flex-1">
                     Place Order - ₹{getCartTotal().toFixed(2)}
                   </Button>
+                  <Button 
+                    type="button"
+                    onClick={() => {
+                      setSuccessOrderData({
+                        orderNumber: 'TEST123',
+                        totalAmount: 100,
+                        estimatedDeliveryTime: '30 min',
+                        deliveryAddress: 'Test Address',
+                        customerInfo: { phone: '1234567890' }
+                      });
+                      setShowSuccessModal(true);
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                  >
+                    Test Popup
+                  </Button>
                 </div>
               </form>
             </div>
@@ -253,5 +407,7 @@ export const CartModal = () => {
         </div>
       </div>
     </div>
+      )}
+    </>
   );
 };

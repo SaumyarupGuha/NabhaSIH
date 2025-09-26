@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
@@ -29,35 +29,81 @@ export default function SignupPage() {
     specialization: '',
     hospital: '',
     pharmacyName: '',
-    pharmacyAddress: ''
+    pharmacyAddress: '',
+    selectedPharmacyId: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [verifiedPharmacies, setVerifiedPharmacies] = useState([]);
+  const [selectedPharmacyDetails, setSelectedPharmacyDetails] = useState(null);
+  const [registeredPharmacies, setRegisteredPharmacies] = useState([]);
 
-  const { register } = useAuth();
+  const { register, setUser } = useAuth();
   const navigate = useNavigate();
 
+  // Fetch verified pharmacies when component mounts
+  useEffect(() => {
+    const fetchVerifiedPharmacies = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/verified-pharmacies');
+        if (response.ok) {
+          const data = await response.json();
+          setVerifiedPharmacies(data.data || []);
+        }
+        
+        // Update with actual registered pharmacy IDs from database
+        setRegisteredPharmacies(['punjab_medical_store', 'munish_med_hall']);
+      } catch (error) {
+        console.error('Error fetching pharmacies:', error);
+      }
+    };
+    
+    fetchVerifiedPharmacies();
+  }, []);
+
+  // Handle pharmacy selection
+  const handlePharmacySelect = (pharmacyId) => {
+    const pharmacy = verifiedPharmacies.find(p => p.id === pharmacyId);
+    if (pharmacy) {
+      setSelectedPharmacyDetails(pharmacy);
+      setFormData({
+        ...formData,
+        selectedPharmacyId: pharmacyId,
+        pharmacyName: pharmacy.name,
+        pharmacyAddress: pharmacy.address
+      });
+    } else {
+      setSelectedPharmacyDetails(null);
+      setFormData({
+        ...formData,
+        selectedPharmacyId: '',
+        pharmacyName: '',
+        pharmacyAddress: ''
+      });
+    }
+  };
+
   const villages = [
-  "Abhepur","Achal","Agaul","Ageta","Ageti","Ajnauda kalan","Ajnauda Khurd","Akalgarh","Alampur","Alipur",
-  "Allowal","Babarpur","Banera kalan","Banera Khurd","Barhe","Bauran Kalan","Bauran Khurd","Bazidpur","Bazidri","Behbalpur",
-  "Bhari Panechan","Bhilowal","Bhojo Majri","Bhore","Bina Heri","Bir Agaul","Bir Bauran","Bir Dosanjhan","Birarhwal","Birdhano",
-  "Bishangarh","Bishanpura","Bugga Khurd","Chahal","Chaswal","Chathe","Chhaju Bhatt","Chhana Nathuwali","Choudhri Majra","Dakaunda",
-  "Dandrala Dhindsa","Dandrala Kharaur","Dargapur","Dewangarh","Dhanaura","Dhanauri","Dhanauri","Dhangera","Dharoki","Dhingi",
-  "Dhundewal","Dittupur Jattan","Doda","Duladi","Faizgarh","Faridpur","Fatehpur","Gadaya","Galwati","Ghamrouda",
-  "Ghaniawal","Ghanurki","Ghunder","Gobindgarh Chhanna","Gobindpura","Gujarheri","Gunike","Gurditpura","Hakimpur","Halla",
-  "Halotali","Hari nagar","Harigarh","Hassanpur","Hiana kalan","Hiana Khurd","Ichhewal","Jasso Majra","Jatiwal","Jhambali Khas",
-  "Jhambali sahni","Jindalpur","Kaidupur","Kakrala","Kalar Majri","Kalhana","Kalhe majra","Kalsana","Kameli","Kansuha Kalan",
-  "Kansuha Khurd","Kaul","Khanora","Kheri Jattan","Khizerpur","Khokh","Khurd","Kishangarh","Kot Kalan","Kot Khurd",
-  "Kotli","Kularan","Labana Karmoo","Labana Teku","Ladha Heri","Lalauda","Lohar Majra","Lopa","Lout","Malewal",
-  "Malkon","Mandaur","Mangewal","Mansurpur","Matourda","Mehas","Mohal Gawara","Mungo","Nabha","Nanoki",
-  "Nanowal","Naraingarh","Narmana","Nauhra","Paharpur","Pahlia Kalan","Pahlia Khurd","Paidan","Pednni Khurd","Raimal Majri",
-  "Raisal","Raj Garh","Rajpura","Ramgarh","Ramgarh","Ramgarh Chhanna","Rampur Sahiewal","Ranjitgarh","Ranno","Rohta",
-  "Rohti Basta Singh","Rohti Chhanna","Rohti Khas","Rohti Mouran","Sadhnauli","Sadho Heri","Sahauli","Sakohan","Sakrali","Saluwala",
-  "Sangatpura","Sauja","Shahpur","Shamaspur","Shamla","Shivgarh","Simbhron","Siri Nagar","Sudhewal","Sukhewal",
-  "Suraajpur","Tarkheri Kalan","Tarkheri khurd","Thuhi","Todarwal","Tohra","Tungan","Udha","Uplan"
-];
+    "Abhepur","Achal","Agaul","Ageta","Ageti","Ajnauda kalan","Ajnauda Khurd","Akalgarh","Alampur","Alipur",
+    "Allowal","Babarpur","Banera kalan","Banera Khurd","Barhe","Bauran Kalan","Bauran Khurd","Bazidpur","Bazidri","Behbalpur",
+    "Bhari Panechan","Bhilowal","Bhojo Majri","Bhore","Bina Heri","Bir Agaul","Bir Bauran","Bir Dosanjhan","Birarhwal","Birdhano",
+    "Bishangarh","Bishanpura","Bugga Khurd","Chahal","Chaswal","Chathe","Chhaju Bhatt","Chhana Nathuwali","Choudhri Majra","Dakaunda",
+    "Dandrala Dhindsa","Dandrala Kharaur","Dargapur","Dewangarh","Dhanaura","Dhanauri","Dhangera","Dharoki","Dhingi",
+    "Dhundewal","Dittupur Jattan","Doda","Duladi","Faizgarh","Faridpur","Fatehpur","Gadaya","Galwati","Ghamrouda",
+    "Ghaniawal","Ghanurki","Ghunder","Gobindgarh Chhanna","Gobindpura","Gujarheri","Gunike","Gurditpura","Hakimpur","Halla",
+    "Halotali","Hari nagar","Harigarh","Hassanpur","Hiana kalan","Hiana Khurd","Ichhewal","Jasso Majra","Jatiwal","Jhambali Khas",
+    "Jhambali sahni","Jindalpur","Kaidupur","Kakrala","Kalar Majri","Kalhana","Kalhe majra","Kalsana","Kameli","Kansuha Kalan",
+    "Kansuha Khurd","Kaul","Khanora","Kheri Jattan","Khizerpur","Khokh","Khurd","Kishangarh","Kot Kalan","Kot Khurd",
+    "Kotli","Kularan","Labana Karmoo","Labana Teku","Ladha Heri","Lalauda","Lohar Majra","Lopa","Lout","Malewal",
+    "Malkon","Mandaur","Mangewal","Mansurpur","Matourda","Mehas","Mohal Gawara","Mungo","Nabha","Nanoki",
+    "Nanowal","Naraingarh","Narmana","Nauhra","Paharpur","Pahlia Kalan","Pahlia Khurd","Paidan","Pednni Khurd","Raimal Majri",
+    "Raisal","Raj Garh","Rajpura","Ramgarh","Ramgarh Chhanna","Rampur Sahiewal","Ranjitgarh","Ranno","Rohta",
+    "Rohti Basta Singh","Rohti Chhanna","Rohti Khas","Rohti Mouran","Sadhnauli","Sadho Heri","Sahauli","Sakohan","Sakrali","Saluwala",
+    "Sangatpura","Sauja","Shahpur","Shamaspur","Shamla","Shivgarh","Simbhron","Siri Nagar","Sudhewal","Sukhewal",
+    "Suraajpur","Tarkheri Kalan","Tarkheri khurd","Thuhi","Todarwal","Tohra","Tungan","Udha","Uplan"
+  ];
 
 
 
@@ -70,14 +116,72 @@ export default function SignupPage() {
       return;
     }
 
-    setLoading(true);
-    const result = await register(formData);
-    
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.error);
+    // For pharmacist role, ensure pharmacy is selected
+    if (formData.role === 'pharmacist' && !formData.selectedPharmacyId) {
+      setError('Please select a verified pharmacy');
+      return;
     }
+
+    setLoading(true);
+    
+    try {
+      let result;
+      
+      if (formData.role === 'pharmacist') {
+        // Use pharmacy signup endpoint
+        const response = await fetch('http://localhost:5000/api/pharmacies/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            password: formData.password,
+            phone: formData.phone,
+            age: formData.age,
+            gender: formData.gender,
+            village: formData.village,
+            contactPerson: `${formData.firstName} ${formData.lastName}`,
+            pharmacyId: formData.selectedPharmacyId,
+            selectedPharmacy: formData.selectedPharmacyId,
+            role: 'pharmacist'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Store token and user data for pharmacy login
+          localStorage.setItem('token', data.data.token);
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+          localStorage.setItem('pharmacyId', data.data.user.pharmacyId);
+          
+          // Update AuthContext state
+          if (setUser) {
+            setUser(data.data.user);
+          }
+          
+          // Redirect to pharmacy dashboard
+          window.location.href = '/pharmacy-dashboard';
+          return;
+        }
+        
+        result = { success: response.ok, error: data.message };
+      } else {
+        // Use regular signup
+        result = await register(formData);
+      }
+      
+      if (result && result.success) {
+        // For non-pharmacy roles, redirect to home
+        navigate('/');
+      } else if (result) {
+        setError(result.error);
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    }
+    
     setLoading(false);
   };
 
@@ -215,8 +319,8 @@ export default function SignupPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <option value="">Select your village</option>
-                  {villages.map((village) => (
-                    <option key={village} value={village.toLowerCase()}>
+                  {villages.map((village, index) => (
+                    <option key={`${village}-${index}`} value={village.toLowerCase()}>
                       {village}
                     </option>
                   ))}
@@ -264,27 +368,65 @@ export default function SignupPage() {
               {formData.role === "pharmacist" && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="pharmacyName">Pharmacy Name</Label>
-                    <Input 
-                      id="pharmacyName" 
-                      name="pharmacyName"
-                      placeholder="Enter pharmacy name" 
-                      value={formData.pharmacyName}
-                      onChange={handleChange}
-                      required 
-                    />
+                    <Label htmlFor="selectedPharmacyId">Select Verified Pharmacy *</Label>
+                    <select
+                      name="selectedPharmacyId"
+                      value={formData.selectedPharmacyId}
+                      onChange={(e) => handlePharmacySelect(e.target.value)}
+                      required
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">Choose your pharmacy...</option>
+                      {verifiedPharmacies.map((pharmacy) => {
+                        const isRegistered = registeredPharmacies.includes(pharmacy.id);
+                        console.log(`Pharmacy: ${pharmacy.name} (${pharmacy.id}), Registered: ${isRegistered}`, registeredPharmacies);
+                        return (
+                          <option key={pharmacy.id} value={pharmacy.id} disabled={isRegistered}>
+                            {pharmacy.name} {isRegistered ? '(Already Registered)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pharmacyAddress">Pharmacy Address</Label>
-                    <Textarea 
-                      id="pharmacyAddress" 
-                      name="pharmacyAddress"
-                      placeholder="Enter complete address" 
-                      value={formData.pharmacyAddress}
-                      onChange={handleChange}
-                      required 
-                    />
-                  </div>
+                  
+                  {selectedPharmacyDetails && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="pharmacyName">Pharmacy Name (Auto-filled)</Label>
+                        <Input 
+                          id="pharmacyName" 
+                          name="pharmacyName"
+                          value={formData.pharmacyName}
+                          readOnly
+                          className="bg-gray-50 text-gray-600"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pharmacyAddress">Pharmacy Address (Auto-filled)</Label>
+                        <Textarea 
+                          id="pharmacyAddress" 
+                          name="pharmacyAddress"
+                          value={formData.pharmacyAddress}
+                          readOnly
+                          className="bg-gray-50 text-gray-600"
+                          rows="2"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pharmacyPhone">Pharmacy Phone (Auto-filled)</Label>
+                        <Input 
+                          value={selectedPharmacyDetails.phone}
+                          readOnly
+                          className="bg-gray-50 text-gray-600"
+                        />
+                      </div>
+                      <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <p className="text-sm text-green-700">
+                          ✓ This pharmacy is pre-verified and approved for our platform
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 

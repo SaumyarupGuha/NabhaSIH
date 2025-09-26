@@ -1,42 +1,78 @@
 const express = require('express');
+const Stock = require('../models/Stock');
 const router = express.Router();
-const Medicine = require('../models/Medicine');
 
-// Search medicines
-router.get('/search', async (req, res) => {
+// Get all available medicines from all pharmacies
+router.get('/available', async (req, res) => {
   try {
-    const { q } = req.query;
-    
-    if (!q || q.trim().length < 2) {
-      return res.json({ success: true, data: [] });
-    }
-    
-    console.log('Searching medicines for:', q);
-    
-    const medicines = await Medicine.find({
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { genericName: { $regex: q, $options: 'i' } },
-        { category: { $regex: q, $options: 'i' } }
-      ]
-    }).limit(10);
-    
-    console.log('Found medicines:', medicines.length);
-    
-    res.json({ success: true, data: medicines });
-  } catch (error) {
-    console.error('Medicine search error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+    // Get all stock items with quantity > 0
+    const stockItems = await Stock.find({ 
+      quantity: { $gt: 0 },
+      isAvailable: true 
+    }).sort({ medicineName: 1 });
 
-// Get all medicines
-router.get('/', async (req, res) => {
-  try {
-    const medicines = await Medicine.find({ inStock: true });
-    res.json({ success: true, data: medicines });
+    // Group by medicine name and aggregate quantities
+    const medicineMap = new Map();
+    
+    stockItems.forEach(item => {
+      const key = item.medicineName;
+      if (medicineMap.has(key)) {
+        const existing = medicineMap.get(key);
+        existing.totalQuantity += item.quantity;
+        existing.pharmacies.push({
+          pharmacyId: item.pharmacy,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        });
+        // Use the lowest price
+        if (item.unitPrice < existing.unitPrice) {
+          existing.unitPrice = item.unitPrice;
+        }
+      } else {
+        medicineMap.set(key, {
+          _id: item._id,
+          name: item.medicineName,
+          category: item.category,
+          unitPrice: item.unitPrice,
+          totalQuantity: item.quantity,
+          manufacturer: item.manufacturer,
+          expiryDate: item.expiryDate,
+          pharmacies: [{
+            pharmacyId: item.pharmacy,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          }]
+        });
+      }
+    });
+
+    // Convert map to array and format for frontend
+    const availableMedicines = Array.from(medicineMap.values()).map(medicine => ({
+      _id: medicine._id,
+      name: medicine.name,
+      price: `₹${medicine.unitPrice}`,
+      unitPrice: medicine.unitPrice,
+      availability: medicine.totalQuantity > 0 ? 
+        (medicine.totalQuantity <= 20 ? "Limited Stock" : "In Stock") : 
+        "Out of Stock",
+      quantity: medicine.totalQuantity,
+      category: medicine.category,
+      manufacturer: medicine.manufacturer,
+      expiryDate: medicine.expiryDate,
+      pharmacies: medicine.pharmacies
+    }));
+
+    res.json({ 
+      success: true, 
+      data: availableMedicines,
+      count: availableMedicines.length 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Error fetching available medicines:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch available medicines' 
+    });
   }
 });
 

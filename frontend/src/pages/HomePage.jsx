@@ -66,7 +66,7 @@ export default function HomePage() {
 
     return (
       <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 mb-8 max-w-4xl mx-auto">
-        <h3 className="text-lg font-semibold mb-2">{t('welcome', { name: user.name })}</h3>
+        <h3 className="text-lg font-semibold mb-2">{t('welcome', { name: user.name || `${user.firstName} ${user.lastName}` })}</h3>
         <p className="text-muted-foreground mb-4">
           {user.role === "patient" && t('userRoles.patient')}
           {user.role === "doctor" && t('userRoles.doctor')}

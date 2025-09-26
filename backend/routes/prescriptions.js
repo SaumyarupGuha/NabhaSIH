@@ -7,6 +7,26 @@ const router = express.Router();
 const { auth, authorize } = require('../middleware/auth');
 const Prescription = require('../models/Prescription');
 
+// Get user prescriptions
+router.get('/', auth, async (req, res) => {
+  try {
+    const prescriptions = await Prescription.find({ patient: req.user.id })
+      .populate('doctor', 'firstName lastName')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      data: prescriptions
+    });
+  } catch (error) {
+    console.error('Error fetching prescriptions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch prescriptions'
+    });
+  }
+});
+
 // Ensure dotenv is loaded
 require('dotenv').config();
 

@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const verifiedPharmacies = require('../data/verifiedPharmacies');
 
 const router = express.Router();
 
@@ -32,22 +33,32 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ message: 'Pharmacy selection is required for pharmacist registration' });
       }
       
+      // Validate pharmacy is in verified list
+      const verifiedPharmacy = verifiedPharmacies.find(p => p.name === selectedPharmacy);
+      if (!verifiedPharmacy) {
+        return res.status(400).json({ 
+          message: 'Selected pharmacy is not in our verified list. Please contact support to add your pharmacy.' 
+        });
+      }
+      
       if (!license) {
         return res.status(400).json({ message: 'Pharmacy license is required for pharmacist registration' });
       }
       
-      // Check if pharmacy already has a pharmacist
+      // Check if pharmacy already has a pharmacist (verified or unverified)
       const existingPharmacist = await User.findOne({ 
         role: 'pharmacist', 
-        selectedPharmacy: selectedPharmacy,
-        isVerified: true 
+        selectedPharmacy: selectedPharmacy
       });
       
       if (existingPharmacist) {
         return res.status(400).json({ 
-          message: 'This pharmacy already has a registered pharmacist. Only one pharmacist per pharmacy is allowed.' 
+          message: `This pharmacy already has a registered pharmacist (${existingPharmacist.firstName} ${existingPharmacist.lastName}). Only one pharmacist per pharmacy is allowed.` 
         });
       }
+      
+      // Store verified pharmacy details in userData object (defined later)
+      // Will be added to userData after it's created
     }
 
     // Create user
@@ -71,13 +82,19 @@ router.post('/register', async (req, res) => {
       userData.consultationFee = consultationFee;
       userData.availableDays = availableDays || [];
     } else if (role === 'pharmacist') {
+      const verifiedPharmacy = verifiedPharmacies.find(p => p.name === selectedPharmacy);
       userData.selectedPharmacy = selectedPharmacy;
+      userData.pharmacyName = selectedPharmacy;
+      userData.pharmacyAddress = verifiedPharmacy.address;
+      userData.pharmacyPhone = verifiedPharmacy.phone;
       userData.license = license;
       userData.isVerified = false; // Pharmacists need admin approval
     }
 
     const user = new User(userData);
+    console.log('About to save user:', user.phone, 'Password length:', user.password.length);
     await user.save();
+    console.log('User saved successfully:', user.phone);
 
     const token = generateToken(user._id);
 
@@ -87,11 +104,15 @@ router.post('/register', async (req, res) => {
       user: {
         id: user._id,
         name: user.fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         phone: user.phone,
         role: user.role,
         village: user.village,
-        isVerified: user.isVerified
+        isVerified: user.isVerified,
+        selectedPharmacy: user.selectedPharmacy,
+        pharmacyName: user.pharmacyName
       }
     });
   } catch (error) {
@@ -110,7 +131,8 @@ router.post('/login', [
     console.log('Login attempt:', req.body);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ message: errors.array()[0].msg });
+      console.log('Validation errors:', errors.array());
+      return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
     }
 
     const { contact, password, role } = req.body;
@@ -136,8 +158,11 @@ router.post('/login', [
     console.log('User found:', user.email || user.phone);
 
     // Check password
+    console.log('Comparing password for user:', user.phone);
     const isMatch = await user.comparePassword(password);
+    console.log('Password match result:', isMatch);
     if (!isMatch) {
+      console.log('Password mismatch for user:', user.phone);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -149,11 +174,15 @@ router.post('/login', [
       user: {
         id: user._id,
         name: user.fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         phone: user.phone,
         role: user.role,
         village: user.village,
-        isVerified: user.isVerified
+        isVerified: user.isVerified,
+        selectedPharmacy: user.selectedPharmacy,
+        pharmacyName: user.pharmacyName
       }
     });
   } catch (error) {
@@ -172,9 +201,45 @@ router.get('/me', auth, async (req, res) => {
       phone: req.user.phone,
       role: req.user.role,
       village: req.user.village,
-      isVerified: req.user.isVerified
+      isVerified: req.user.isVerified,
+      selectedPharmacy: req.user.selectedPharmacy,
+      pharmacyName: req.user.pharmacyName
     }
   });
+});
+
+// Get registered pharmacies (for debugging)
+router.get('/registered-pharmacies', async (req, res) => {
+  try {
+    const pharmacists = await User.find({ role: 'pharmacist' }, {
+      firstName: 1,
+      lastName: 1,
+      phone: 1,
+      selectedPharmacy: 1,
+      pharmacyName: 1,
+      isVerified: 1
+    });
+    
+    res.json({
+      success: true,
+      count: pharmacists.length,
+      data: pharmacists
+    });
+  } catch (error) {
+    console.error('Error fetching registered pharmacies:', error);
+    res.status(500).json({ message: 'Error fetching registered pharmacies' });
+  }
+});
+
+// Delete user by phone (for testing)
+router.delete('/delete/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const result = await User.deleteOne({ phone });
+    res.json({ message: 'User deleted', deletedCount: result.deletedCount });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting user' });
+  }
 });
 
 module.exports = router;

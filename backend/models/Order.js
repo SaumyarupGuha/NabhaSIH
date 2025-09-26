@@ -21,12 +21,28 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   },
   acceptedBy: {
-    type: String,  // Changed to String to support pharmacy IDs
+    type: String,  // Pharmacy ID
+    default: null
+  },
+  pharmacyName: {
+    type: String,
+    default: null
+  },
+  pharmacyAddress: {
+    type: String,
+    default: null
+  },
+  pharmacyPhone: {
+    type: String,
     default: null
   },
   acceptedAt: {
     type: Date,
     default: null
+  },
+  rejectedBy: {
+    type: [String],  // Array of pharmacy IDs that rejected this order
+    default: []
   },
   deliveryAddress: {
     type: String,
@@ -43,6 +59,10 @@ const orderSchema = new mongoose.Schema({
     name: String,
     phone: String,
     address: String
+  },
+  estimatedDeliveryTime: {
+    type: String,
+    default: '30-45 min'
   },
   prescriptionUrl: String,
   notes: String

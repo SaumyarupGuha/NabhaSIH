@@ -16,6 +16,9 @@ const testAlertRoutes = require('./routes/testAlert');
 const medicineRoutes = require('./routes/medicines');
 const orderRoutes = require('./routes/orders');
 const stockRoutes = require('./routes/stock');
+const verifiedPharmaciesRoutes = require('./routes/verifiedPharmacies');
+const googleMapsRoutes = require('./routes/googleMaps');
+const pharmacyUpdatesRoutes = require('./routes/pharmacyUpdates');
 const handleOrderEvents = require('./socket/orderEvents');
 
 dotenv.config();
@@ -70,6 +73,12 @@ io.on('connection', (socket) => {
     console.log(`🏠 Doctor ${doctorId} joined room: doctor_${doctorId}`);
   });
   
+  // Join patient room for order updates
+  socket.on('joinPatientRoom', (patientId) => {
+    socket.join(`patient_${patientId}`);
+    console.log(`👤 Patient ${patientId} joined room: patient_${patientId}`);
+  });
+  
   // Join general pharmacy dashboard room
   socket.on('joinPharmacyDashboard', () => {
     socket.join('pharmacy_dashboard');
@@ -96,7 +105,12 @@ app.use('/api/health-data', healthDataRoutes);
 app.use('/api/test-alert', testAlertRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/order-matching', require('./routes/orderMatching'));
+app.use('/api/distance', require('./routes/distance'));
 app.use('/api/stock', stockRoutes);
+app.use('/api/verified-pharmacies', verifiedPharmaciesRoutes);
+app.use('/api/google-maps', googleMapsRoutes);
+app.use('/api/pharmacy-updates', pharmacyUpdatesRoutes);
 
   // Health check route
   app.get('/api/health', (req, res) => {

@@ -12,6 +12,8 @@ import PharmaciesPage from './pages/PharmaciesPage';
 import HospitalsPage from './pages/HospitalsPage';
 import HospitalDashboard from './pages/HospitalDashboard';
 import PharmacyDashboard from './pages/PharmacyDashboard';
+import PharmacySignup from './pages/PharmacySignup';
+import OrderTracking from './pages/OrderTracking';
 
 
 function App() {
@@ -30,6 +32,8 @@ function App() {
             <Route path="/hospitals" element={<HospitalsPage />} />
             <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
             <Route path="/pharmacy-dashboard" element={<PharmacyDashboard />} />
+            <Route path="/pharmacy-signup" element={<PharmacySignup />} />
+            <Route path="/order-tracking/:orderId" element={<OrderTracking />} />
             <Route path="/admin" element={<div>Admin Dashboard</div>} />
 
             </Routes>

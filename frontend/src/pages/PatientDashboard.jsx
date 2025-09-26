@@ -7,47 +7,166 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/Badge';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { appointmentAPI, prescriptionAPI } from '../lib/api';
-import { Calendar, Clock, User, FileText, Pill, Phone, Plus, Eye } from 'lucide-react';
+import { Calendar, Clock, User, FileText, Pill, Phone, Plus, Eye, Package, Truck, RefreshCw } from 'lucide-react';
+import io from 'socket.io-client';
 
 export default function PatientDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
   const { t } = useTranslation('patient');
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [appointmentsRes, prescriptionsRes] = await Promise.all([
-          appointmentAPI.getAppointments(),
-          prescriptionAPI.getPrescriptions()
-        ]);
+        console.log('Fetching patient dashboard data...');
         
-        setAppointments(appointmentsRes.data);
-        setPrescriptions(prescriptionsRes.data);
+        // Fetch appointments
+        let appointmentsData = [];
+        try {
+          const appointmentsRes = await appointmentAPI.getAppointments();
+          appointmentsData = Array.isArray(appointmentsRes.data) ? appointmentsRes.data : appointmentsRes.data?.data || [];
+          console.log('Appointments fetched:', appointmentsData.length);
+        } catch (error) {
+          console.error('Error fetching appointments:', error);
+        }
+        
+        // Fetch prescriptions
+        let prescriptionsData = [];
+        try {
+          const prescriptionsRes = await prescriptionAPI.getPrescriptions();
+          prescriptionsData = Array.isArray(prescriptionsRes.data) ? prescriptionsRes.data : prescriptionsRes.data?.data || [];
+          console.log('Prescriptions fetched:', prescriptionsData.length);
+        } catch (error) {
+          console.error('Error fetching prescriptions:', error);
+        }
+        
+        // Fetch orders
+        let ordersData = [];
+        try {
+          const ordersRes = await fetch('http://localhost:5000/api/orders/patient', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
+          if (ordersRes.ok) {
+            const ordersJson = await ordersRes.json();
+            ordersData = ordersJson.data || [];
+            console.log('Orders fetched:', ordersData.length);
+          }
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        }
+        
+        setAppointments(appointmentsData);
+        setPrescriptions(prescriptionsData);
+        setOrders(ordersData);
+        
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('General error in fetchData:', error);
+        setAppointments([]);
+        setPrescriptions([]);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
+
+    // Setup Socket.io for real-time order updates
+    const newSocket = io('http://localhost:5000');
+    setSocket(newSocket);
+
+    // Listen for order acceptance
+    newSocket.on('orderAccepted', (data) => {
+      console.log('Order accepted event received:', data);
+      setOrders(prev => prev.map(order => 
+        order._id === data.orderId ? { 
+          ...order, 
+          status: 'accepted', 
+          acceptedBy: data.acceptedBy,
+          pharmacyName: data.pharmacyName 
+        } : order
+      ));
+    });
+
+    // Listen for order status updates
+    newSocket.on('orderUpdated', (data) => {
+      console.log('Order updated event received:', data);
+      setOrders(prev => prev.map(order => 
+        order._id === data.orderId ? { 
+          ...order, 
+          status: data.status,
+          pharmacyName: data.pharmacyName || order.pharmacyName
+        } : order
+      ));
+    });
+
+    // Listen for order status updates (alternative event name)
+    newSocket.on('orderStatusUpdate', (data) => {
+      console.log('Order status update event received:', data);
+      if (data.customerId) {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (data.customerId === user._id || data.customerId === user.id) {
+          setOrders(prev => prev.map(order => 
+            order._id === data.orderId ? { 
+              ...order, 
+              status: data.status,
+              pharmacyName: data.pharmacyName || order.pharmacyName
+            } : order
+          ));
+        }
+      }
+    });
+
+    // Join patient room for targeted updates
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user._id || user.id) {
+      newSocket.emit('joinPatientRoom', user._id || user.id);
+    }
+
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'scheduled':
+      case 'pending':
         return 'bg-blue-100 text-blue-800';
       case 'completed':
+      case 'delivered':
         return 'bg-green-100 text-green-800';
       case 'active':
+      case 'accepted':
+      case 'preparing':
         return 'bg-orange-100 text-orange-800';
+      case 'ready':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getPharmacyName = (order) => {
+    return order.pharmacyName || 'Waiting for pharmacy';
+  };
+
+  const getStatusDisplay = (status) => {
+    const statusMap = {
+      'pending': 'Finding Pharmacy',
+      'accepted': 'Accepted',
+      'preparing': 'Preparing Order',
+      'ready': 'Ready for Pickup',
+      'delivered': 'Delivered',
+      'rejected': 'Rejected'
+    };
+    return statusMap[status] || status;
   };
 
   const AppointmentModal = ({ isOpen, onClose }) => {
@@ -199,7 +318,7 @@ export default function PatientDashboard() {
           </Card>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold">{t('dashboard.myAppointments')}</h2>
@@ -329,6 +448,113 @@ export default function PatientDashboard() {
                           <Button size="sm">
                             <Pill className="h-4 w-4 mr-2" />
                             {t('dashboard.orderMedicines')}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold">My Orders</h2>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={async () => {
+                    setRefreshingOrders(true);
+                    try {
+                      const ordersRes = await fetch('http://localhost:5000/api/orders/patient', {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      if (ordersRes.ok) {
+                        const ordersJson = await ordersRes.json();
+                        setOrders(ordersJson.data || []);
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing orders:', error);
+                    } finally {
+                      setTimeout(() => setRefreshingOrders(false), 500);
+                    }
+                  }}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshingOrders ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleNavigateToPharmacy}>
+                  <Package className="h-4 w-4 mr-2" />
+                  New Order
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {orders.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-8">
+                    <p className="text-muted-foreground">No orders yet</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                orders.map((order) => (
+                  <Card key={order._id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Package className="h-5 w-5" />
+                            Order #{order.orderNumber}
+                          </CardTitle>
+                          <CardDescription>
+                            {getPharmacyName(order)} • ₹{order.totalAmount}
+                            {order.pharmacyAddress && (
+                              <><br /><span className="text-xs">{order.pharmacyAddress}</span></>
+                            )}
+                          </CardDescription>
+                        </div>
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusDisplay(order.status)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="mb-4">
+                        <h4 className="font-medium mb-2">Medicines</h4>
+                        <ul className="space-y-1">
+                          {order.medicines?.slice(0, 2).map((medicine, index) => (
+                            <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
+                              <div className="w-2 h-2 bg-primary rounded-full" />
+                              {medicine.name} x{medicine.quantity}
+                            </li>
+                          ))}
+                          {order.medicines?.length > 2 && (
+                            <li className="text-sm text-muted-foreground">+{order.medicines.length - 2} more items</li>
+                          )}
+                        </ul>
+                      </div>
+                      {order.estimatedDeliveryTime && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                          <Truck className="h-4 w-4" />
+                          Estimated delivery: {order.estimatedDeliveryTime}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => navigate(`/order-tracking/${order._id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Track Order
+                        </Button>
+                        {order.status === 'ready' && (
+                          <Button size="sm">
+                            <Phone className="h-4 w-4 mr-2" />
+                            Call Pharmacy
                           </Button>
                         )}
                       </div>

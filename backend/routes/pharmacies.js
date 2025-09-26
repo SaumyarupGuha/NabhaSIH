@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Pharmacy = require('../models/Pharmacy');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 // Get all pharmacies
 router.get('/', async (req, res) => {
@@ -256,6 +259,174 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data: pharmacies });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get verified pharmacies for signup dropdown
+router.get('/verified', async (req, res) => {
+  try {
+    // For now, return sample verified pharmacies with proper structure
+    const verifiedPharmacies = [
+      {
+        _id: '1',
+        name: 'King Pharmacy',
+        address: 'Circular Road, Nabha',
+        area: 'Circular Road',
+        city: 'Nabha',
+        licenseNumber: 'PB-NAB-001',
+        coordinates: { lat: 30.1644, lng: 76.1436 },
+        isVerified: true
+      },
+      {
+        _id: '2', 
+        name: 'Punjab Medical Store',
+        address: '9582+MXC, Circular Road, near Pal Nursing Home',
+        area: 'Circular Road',
+        city: 'Nabha',
+        licenseNumber: 'PB-NAB-002',
+        coordinates: { lat: 30.1650, lng: 76.1440 },
+        isVerified: true
+      },
+      {
+        _id: '3',
+        name: 'Channo Health Care',
+        address: 'Patiala, SH-12A, Main Road, Nabha',
+        area: 'Main Road',
+        city: 'Nabha', 
+        licenseNumber: 'PB-NAB-003',
+        coordinates: { lat: 30.1655, lng: 76.1445 },
+        isVerified: true
+      },
+      {
+        _id: '4',
+        name: 'Manjit Medical Hall',
+        address: 'Mata Rani Rd, Nabha',
+        area: 'Mata Rani Road',
+        city: 'Nabha',
+        licenseNumber: 'PB-NAB-004', 
+        coordinates: { lat: 30.1660, lng: 76.1450 },
+        isVerified: true
+      },
+      {
+        _id: '5',
+        name: 'Jan Aushadhi Store',
+        address: 'Civil Hospital, Nabha',
+        area: 'Civil Hospital',
+        city: 'Nabha',
+        licenseNumber: 'PB-NAB-005',
+        coordinates: { lat: 30.1665, lng: 76.1455 },
+        isVerified: true
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: verifiedPharmacies
+    });
+  } catch (error) {
+    console.error('Error fetching verified pharmacies:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pharmacies'
+    });
+  }
+});
+
+// Pharmacy signup
+router.post('/signup', async (req, res) => {
+  try {
+    console.log('Pharmacy signup request body:', req.body);
+    
+    const { 
+      firstName,
+      lastName,
+      email, 
+      password, 
+      phone,
+      age,
+      gender,
+      village,
+      contactPerson, 
+      pharmacyId,
+      selectedPharmacy,
+      workingHours,
+      role = 'pharmacist'
+    } = req.body;
+    
+    console.log('Extracted fields:', { firstName, lastName, email, phone, age, gender, village, pharmacyId, selectedPharmacy });
+
+    // Check if user already exists (only if email is provided)
+    if (email && email.trim()) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
+    const user = new User({
+      firstName,
+      lastName,
+      email: email && email.trim() ? email : undefined,
+      password: hashedPassword,
+      phone,
+      age: age || 25, // Default age for pharmacist
+      gender: gender || 'other',
+      village,
+      role,
+      selectedPharmacy: pharmacyId || selectedPharmacy,
+      isVerified: true
+    });
+
+    await user.save();
+    console.log('Created pharmacy user:', {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      pharmacyId: user.pharmacyId
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: user._id, 
+        role: user.role,
+        pharmacyId: user.pharmacyId
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Pharmacy account created successfully',
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          pharmacyId: user.pharmacyId
+        },
+        token
+      }
+    });
+
+  } catch (error) {
+    console.error('Pharmacy signup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during signup'
+    });
   }
 });
 

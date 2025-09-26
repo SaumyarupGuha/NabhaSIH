@@ -73,12 +73,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: function() { return this.role === 'pharmacist'; }
   },
-  // Keep old fields for backward compatibility
+  // Pharmacy details from verified list
   pharmacyName: {
     type: String,
     required: false
   },
   pharmacyAddress: {
+    type: String,
+    required: false
+  },
+  pharmacyPhone: {
     type: String,
     required: false
   },
@@ -102,10 +106,13 @@ userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
   try {
+    console.log('Hashing password for user:', this.phone);
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    console.log('Password hashed successfully for:', this.phone);
     next();
   } catch (error) {
+    console.error('Password hashing error:', error);
     next(error);
   }
 });
