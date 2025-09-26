@@ -15,6 +15,7 @@ const ConsultationsPage = React.lazy(() => import('./pages/ConsultationsPage'));
 const PharmaciesPage = React.lazy(() => import('./pages/PharmaciesPage'));
 const HospitalsPage = React.lazy(() => import('./pages/HospitalsPage'));
 const HospitalDashboard = React.lazy(() => import('./pages/HospitalDashboard'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const VideoCall = React.lazy(() => import('./components/VideoCall'));
 
 // Loading fallback component
@@ -47,7 +48,7 @@ function App() {
                 <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
                 <Route path="/video-room/:roomId" element={<VideoCall />} />
                 <Route path="/pharmacy-dashboard" element={<div>Pharmacy Dashboard</div>} />
-                <Route path="/admin" element={<div>Admin Dashboard</div>} />
+                <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </Suspense>
           </div>
