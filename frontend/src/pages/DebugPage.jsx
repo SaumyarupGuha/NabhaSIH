@@ -1,6 +1,7 @@
 import React from 'react';
 import { RegistrationTest } from '../components/RegistrationTest';
 import { VideoCallTest } from '../components/VideoCallTest';
+import SocketTest from '../components/SocketTest';
 
 export default function DebugPage() {
   return (
@@ -13,9 +14,15 @@ export default function DebugPage() {
           <VideoCallTest />
         </div>
         
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Socket.IO Connection Test</h2>
+          <SocketTest />
+        </div>
+        
         <div className="mt-8 p-4 border rounded">
           <h3 className="font-bold mb-2">Current Environment</h3>
           <p><strong>API URL:</strong> {import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api'}</p>
+          <p><strong>Socket URL:</strong> {import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'}</p>
           <p><strong>Mode:</strong> {import.meta.env.MODE}</p>
         </div>
         

@@ -21,9 +21,13 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://nabha-sih.vercel.app", "https://nabhasih-1.onrender.com"]
+      : ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 const PORT = process.env.PORT || 5000;
 
@@ -32,10 +36,12 @@ app.set('io', io);
 
 // Middleware
 app.use(cors({
-  origin: "*",
+  origin: process.env.NODE_ENV === 'production' 
+    ? ["https://nabha-sih.vercel.app", "https://nabhasih-1.onrender.com"]
+    : ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  credentials: false
+  credentials: true
 }));
 
 // Handle preflight requests
@@ -55,9 +61,20 @@ app.use((req, res, next) => {
 });
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log('MongoDB connection error:', err));
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI is not defined in environment variables');
+  console.log('Please create a .env file with MONGODB_URI=mongodb://localhost:27017/nabha-health');
+  process.exit(1);
+}
+
+mongoose.connect(MONGODB_URI)
+.then(() => console.log('✅ MongoDB connected successfully'))
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err.message);
+  console.log('Make sure MongoDB is running on your system');
+  process.exit(1);
+});
 
 // Socket.io connection handling
 io.on('connection', (socket) => {

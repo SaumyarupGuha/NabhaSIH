@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 class HealthDataSimulator {
-  constructor(baseUrl = 'https://nabhasih-1.onrender.com', intervalMinutes = 1) {
+  constructor(baseUrl = 'http://localhost:5000', intervalMinutes = 1) {
     this.baseUrl = baseUrl;
     this.interval = intervalMinutes * 60 * 1000; // Convert to milliseconds
     this.dataIndex = 0;
@@ -21,17 +21,16 @@ class HealthDataSimulator {
 
   async loadPatientIds() {
     try {
-      console.log(`🔗 Loading patient IDs from: ${this.baseUrl}/api/users?role=patient`);
       const response = await axios.get(`${this.baseUrl}/api/users?role=patient`);
       if (response.data.success && response.data.data.length > 0) {
         this.patientIds = response.data.data.map(patient => patient._id);
-        console.log(`📋 Loaded ${this.patientIds.length} patient IDs:`, this.patientIds);
+        console.log(`📋 Loaded ${this.patientIds.length} patient IDs`);
       } else {
-        console.log('⚠️ No patients found in database');
+        console.log('⚠️ No patients found, using fallback IDs');
+        this.patientIds = ['68cc4acae4fc2d7ddaf13fa4', '68ccec50249ad6de413eaaf3'];
       }
     } catch (error) {
-      console.error('❌ Error loading patient IDs:', error.message);
-      // Fallback to hardcoded IDs
+      console.log('⚠️ Using fallback patient IDs');
       this.patientIds = ['68cc4acae4fc2d7ddaf13fa4', '68ccec50249ad6de413eaaf3'];
     }
   }
@@ -41,10 +40,8 @@ class HealthDataSimulator {
     
     try {
       if (this.patientIds.length === 0) {
-        console.log('⚠️ No patient IDs available, reloading...');
         await this.loadPatientIds();
         if (this.patientIds.length === 0) {
-          console.log('❌ Still no patient IDs, skipping this cycle');
           return;
         }
       }
@@ -74,11 +71,14 @@ class HealthDataSimulator {
       this.dataIndex++;
       
     } catch (error) {
-      console.error('❌ Error sending health data:', error.message);
-      if (error.response) {
-        console.error('Response data:', error.response.data);
+      if (error.code === 'ECONNREFUSED') {
+        console.log('⚠️ Server not ready, retrying in 5 seconds...');
+      } else {
+        console.error('❌ Error sending health data:', error.message);
+        if (error.response) {
+          console.error('Response data:', error.response.data);
+        }
       }
-      // Always move to next data point after error
       this.dataIndex++;
     }
   }
@@ -90,14 +90,20 @@ class HealthDataSimulator {
     }
     
     console.log(`🚀 Starting health data simulator (interval: ${this.interval/1000}s)`);
+    console.log('⏳ Waiting 3 seconds for server to start...');
+    
+    // Wait for server to start
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Load patient IDs first
     await this.loadPatientIds();
     
     this.isRunning = true;
     
-    // Send first data immediately
-    await this.sendHealthData();
+    // Send first data after delay
+    setTimeout(async () => {
+      await this.sendHealthData();
+    }, 2000);
     
     // Set interval for subsequent data
     this.intervalId = setInterval(async () => {

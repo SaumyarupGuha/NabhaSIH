@@ -14,7 +14,7 @@ export const DoctorAlerts = ({ doctorId }) => {
     console.log('🔌 Initializing socket connection for doctor:', doctorId);
     
     // Initialize socket connection
-    const newSocket = io('https://nabhasih-1.onrender.com');
+    const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -54,7 +54,7 @@ export const DoctorAlerts = ({ doctorId }) => {
     try {
       console.log('📥 Fetching existing alerts for doctor:', doctorId);
       const token = localStorage.getItem('token');
-      const response = await fetch('https://nabhasih-1.onrender.com/api/health-data/alerts/doctor', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/health-data/alerts/doctor`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -71,7 +71,7 @@ export const DoctorAlerts = ({ doctorId }) => {
   const acknowledgeAlert = async (alertId) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`https://nabhasih-1.onrender.com/api/health-data/alerts/${alertId}/acknowledge`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/health-data/alerts/${alertId}/acknowledge`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });

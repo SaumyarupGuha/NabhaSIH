@@ -303,8 +303,40 @@ export default function HospitalDashboard() {
           </TabsList>
 
           <TabsContent value="alerts">
-            {currentUser && currentUser._id && (
+            <div className="mb-4 p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm">Debug Info:</p>
+                  <p className="text-xs">User ID: {currentUser?._id || 'Not found'}</p>
+                  <p className="text-xs">Socket Connected: {socket?.connected ? '✅' : '❌'}</p>
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`${import.meta.env.VITE_API_URL}/test-alert`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      const data = await response.json();
+                      alert(data.success ? 'Test alert sent!' : data.message);
+                    } catch (error) {
+                      alert('Error sending test alert');
+                    }
+                  }}
+                >
+                  Send Test Alert
+                </Button>
+              </div>
+            </div>
+            {currentUser && currentUser._id ? (
               <DoctorAlerts doctorId={currentUser._id} />
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">Please log in as a doctor to view alerts</p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
