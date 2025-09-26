@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { useCart } from '../context/CartContext';
 import { CartModal } from '../components/CartModal';
 
@@ -12,6 +14,7 @@ import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 
 export default function PharmaciesPage() {
+  const { t } = useTranslation('pharmacies');
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +53,62 @@ export default function PharmaciesPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading pharmacies...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid md:grid-cols-4 gap-4 mb-8">
+            <div className="md:col-span-2">
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton variant="shimmer" className="h-6 w-32" />
+              </div>
+              <ListSkeleton count={4} variant="shimmer" />
+            </div>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <Skeleton variant="shimmer" className="h-6 w-48" />
+                  <Skeleton className="h-4 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32 mb-1" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-5 w-16" />
+                          <Skeleton className="h-8 w-12" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Skeleton className="h-10 w-full mt-4" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-16 w-full mb-4" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -63,9 +120,9 @@ export default function PharmaciesPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Pharmacies</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
           <p className="text-muted-foreground">
-            Find local pharmacies in Nabha and surrounding areas for medicine delivery
+            {t('subtitle')}
           </p>
         </div>
 
@@ -73,7 +130,7 @@ export default function PharmaciesPage() {
           <div className="md:col-span-2">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search medicines or pharmacy name..." className="pl-10" />
+              <Input placeholder={t('searchPlaceholder')} className="pl-10" />
             </div>
           </div>
 
@@ -82,20 +139,20 @@ export default function PharmaciesPage() {
             onClick={() => setIsPrescriptionUploadOpen(true)}
           >
             <Pill className="mr-2 h-4 w-4" />
-            Upload Prescription
+            {t('uploadPrescription')}
           </Button>
           <Button variant="outline" className="w-full">
             <Phone className="mr-2 h-4 w-4" />
-            Emergency Order
+            {t('emergencyOrder')}
           </Button>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">Local Pharmacies</h2>
+              <h2 className="text-2xl font-semibold">{t('localPharmacies')}</h2>
               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                {pharmacies.length} pharmacies available
+                {pharmacies.length} {t('pharmaciesAvailable')}
               </Badge>
             </div>
 
@@ -103,7 +160,7 @@ export default function PharmaciesPage() {
               {pharmacies.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">No pharmacies available</p>
+                    <p className="text-muted-foreground">{t('noPharmacies')}</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -183,7 +240,7 @@ export default function PharmaciesPage() {
                               }}
                             >
                               <Pill className="mr-2 h-4 w-4" />
-                              Order Medicines
+                              {t('orderMedicines')}
                             </Button>
                             {pharmacy.phone && (
                               <Button 
@@ -195,7 +252,7 @@ export default function PharmaciesPage() {
                                 }}
                               >
                                 <Phone className="mr-2 h-4 w-4" />
-                                Call Now
+                                {t('callNow')}
                               </Button>
                             )}
                             <Button 
@@ -208,7 +265,7 @@ export default function PharmaciesPage() {
                               }}
                             >
                               <NavigationIcon className="mr-2 h-4 w-4" />
-                              Get Directions
+                              {t('getDirections')}
                             </Button>
                           </div>
                         </div>
@@ -223,8 +280,8 @@ export default function PharmaciesPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Quick Medicine Order</CardTitle>
-                <CardDescription>Order common medicines instantly</CardDescription>
+                <CardTitle>{t('quickMedicineOrder')}</CardTitle>
+                <CardDescription>{t('orderCommonMedicines')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
@@ -262,23 +319,23 @@ export default function PharmaciesPage() {
                   onClick={() => setIsCartOpen(true)}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  View Cart ({getCartCount()}) & Checkout
+                  {t('viewCart')} ({getCartCount()}) {t('checkout')}
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="border-destructive/20 bg-destructive/5">
               <CardHeader>
-                <CardTitle className="text-destructive">Emergency Medicine</CardTitle>
-                <CardDescription>24/7 emergency medicine delivery</CardDescription>
+                <CardTitle className="text-destructive">{t('emergencyMedicine')}</CardTitle>
+                <CardDescription>{t('emergencyDelivery')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Need urgent medicines? Call our emergency hotline for immediate assistance.
+                  {t('emergencyDescription')}
                 </p>
                 <Button variant="destructive" className="w-full">
                   <Phone className="mr-2 h-4 w-4" />
-                  Call Emergency: 108
+                  {t('callEmergency')}
                 </Button>
               </CardContent>
             </Card>

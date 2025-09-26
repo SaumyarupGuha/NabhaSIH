@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Globe, Search } from 'lucide-react';
-import { translationService } from '../lib/translationService';
+import { LANGUAGE_CONFIG, SUPPORTED_LANGUAGES, setDocumentLanguage } from '../utils/languageUtils';
 
 export const LanguageDropdown = () => {
   const { i18n } = useTranslation();
@@ -9,28 +9,12 @@ export const LanguageDropdown = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
 
-  const languages = [
-    { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
-    { code: 'hi', name: 'Hindi', flag: '🇮🇳', native: 'हिंदी' },
-    { code: 'pa', name: 'Punjabi', flag: '🇮🇳', native: 'ਪੰਜਾਬੀ' },
-    { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
-    { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
-    { code: 'de', name: 'German', flag: '🇩🇪', native: 'Deutsch' },
-    { code: 'zh', name: 'Chinese', flag: '🇨🇳', native: '中文' },
-    { code: 'ja', name: 'Japanese', flag: '🇯🇵', native: '日本語' },
-    { code: 'ko', name: 'Korean', flag: '🇰🇷', native: '한국어' },
-    { code: 'ar', name: 'Arabic', flag: '🇸🇦', native: 'العربية' },
-    { code: 'ru', name: 'Russian', flag: '🇷🇺', native: 'Русский' },
-    { code: 'pt', name: 'Portuguese', flag: '🇵🇹', native: 'Português' },
-    { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
-    { code: 'nl', name: 'Dutch', flag: '🇳🇱', native: 'Nederlands' },
-    { code: 'tr', name: 'Turkish', flag: '🇹🇷', native: 'Türkçe' },
-    { code: 'pl', name: 'Polish', flag: '🇵🇱', native: 'Polski' },
-    { code: 'sv', name: 'Swedish', flag: '🇸🇪', native: 'Svenska' },
-    { code: 'da', name: 'Danish', flag: '🇩🇰', native: 'Dansk' },
-    { code: 'no', name: 'Norwegian', flag: '🇳🇴', native: 'Norsk' },
-    { code: 'fi', name: 'Finnish', flag: '🇫🇮', native: 'Suomi' }
-  ];
+  const languages = SUPPORTED_LANGUAGES.map(code => ({
+    code,
+    name: LANGUAGE_CONFIG[code].name,
+    flag: LANGUAGE_CONFIG[code].flag,
+    native: LANGUAGE_CONFIG[code].nativeName
+  }));
 
   const filteredLanguages = languages.filter(lang => 
     lang.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,32 +24,25 @@ export const LanguageDropdown = () => {
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
   const translateContent = async (targetLang) => {
-    if (['en', 'hi', 'pa'].includes(targetLang)) {
-      // Use existing i18n for supported languages
+    if (SUPPORTED_LANGUAGES.includes(targetLang)) {
       i18n.changeLanguage(targetLang);
+      setDocumentLanguage(targetLang);
       return;
-    }
-
-    setIsTranslating(true);
-    try {
-      await translationService.translatePage(targetLang);
-    } catch (error) {
-      console.error('Translation error:', error);
-    } finally {
-      setIsTranslating(false);
     }
   };
 
   const changeLanguage = async (langCode) => {
-    await translateContent(langCode);
-    localStorage.setItem('selectedLanguage', langCode);
-    setIsOpen(false);
-    setSearchTerm('');
+    if (SUPPORTED_LANGUAGES.includes(langCode)) {
+      await translateContent(langCode);
+      localStorage.setItem('selectedLanguage', langCode);
+      setIsOpen(false);
+      setSearchTerm('');
+    }
   };
 
   useEffect(() => {
     const savedLang = localStorage.getItem('selectedLanguage');
-    if (savedLang && !['en', 'hi', 'pa'].includes(savedLang)) {
+    if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang)) {
       translateContent(savedLang);
     }
   }, []);
