@@ -384,12 +384,22 @@ export default function PharmaciesPage() {
       console.log('🔍 Geocoding user address:', userAddress);
       let userCoords = null;
       
+      // Clean and normalize the address
+      let cleanAddress = userAddress.trim();
+      if (!cleanAddress.toLowerCase().includes('punjab')) {
+        cleanAddress += ', Punjab';
+      }
+      if (!cleanAddress.toLowerCase().includes('india')) {
+        cleanAddress += ', India';
+      }
+      
       try {
-        const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/google-maps/geocode?address=${encodeURIComponent(userAddress + ', Punjab, India')}`;
+        // Try with cleaned address first
+        let url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/google-maps/geocode?address=${encodeURIComponent(cleanAddress)}`;
         console.log('📡 Direct geocoding URL:', url);
         
-        const response = await fetch(url);
-        const data = await response.json();
+        let response = await fetch(url);
+        let data = await response.json();
         console.log('📍 Direct geocoding response:', data);
         
         if (data.status === 'OK' && data.results.length > 0) {
@@ -398,7 +408,23 @@ export default function PharmaciesPage() {
             lng: data.results[0].geometry.location.lng
           };
           console.log('✅ Successfully geocoded user address to:', userCoords);
-        } else {
+        } else if (cleanAddress !== userAddress) {
+          // Retry with original address
+          console.log('🔄 Retrying with original address');
+          url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/google-maps/geocode?address=${encodeURIComponent(userAddress)}`;
+          response = await fetch(url);
+          data = await response.json();
+          
+          if (data.status === 'OK' && data.results.length > 0) {
+            userCoords = {
+              lat: data.results[0].geometry.location.lat,
+              lng: data.results[0].geometry.location.lng
+            };
+            console.log('✅ Geocoded with original address:', userCoords);
+          }
+        }
+        
+        if (!userCoords) {
           console.error('❌ Geocoding failed:', data.status, data.error_message);
           showToast(`Could not find location for: ${userAddress}`, 'error');
           return;
@@ -406,11 +432,6 @@ export default function PharmaciesPage() {
       } catch (error) {
         console.error('❌ Geocoding error:', error);
         showToast('Error finding your location. Please try a different address.', 'error');
-        return;
-      }
-      
-      if (!userCoords) {
-        showToast('Could not determine your location. Please try a more specific address.', 'error');
         return;
       }
       

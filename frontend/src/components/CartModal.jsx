@@ -32,12 +32,26 @@ export const CartModal = () => {
   const getCustomerCoordinates = async (address) => {
     console.log('🔍 CartModal geocoding address:', address);
     
+    // Clean and normalize the address
+    let cleanAddress = address.trim();
+    
+    // If address doesn't contain Punjab or India, add them
+    if (!cleanAddress.toLowerCase().includes('punjab')) {
+      cleanAddress += ', Punjab';
+    }
+    if (!cleanAddress.toLowerCase().includes('india')) {
+      cleanAddress += ', India';
+    }
+    
+    console.log('🧩 Cleaned address:', cleanAddress);
+    
     try {
-      const url = `http://localhost:5000/api/google-maps/geocode?address=${encodeURIComponent(address + ', Punjab, India')}`;
+      // Try exact address first
+      let url = `http://localhost:5000/api/google-maps/geocode?address=${encodeURIComponent(cleanAddress)}`;
       console.log('📡 CartModal geocoding URL:', url);
       
-      const response = await fetch(url);
-      const data = await response.json();
+      let response = await fetch(url);
+      let data = await response.json();
       console.log('📍 CartModal geocoding response:', data);
       
       if (data.status === 'OK' && data.results.length > 0) {
@@ -47,13 +61,31 @@ export const CartModal = () => {
         };
         console.log('✅ CartModal successfully geocoded to:', coords);
         return coords;
-      } else {
-        console.error('❌ CartModal geocoding failed:', data.status, data.error_message);
-        throw new Error(`Geocoding failed: ${data.status}`);
       }
+      
+      // If first attempt fails, try with just the original address
+      if (cleanAddress !== address) {
+        console.log('🔄 Retrying with original address:', address);
+        url = `http://localhost:5000/api/google-maps/geocode?address=${encodeURIComponent(address)}`;
+        response = await fetch(url);
+        data = await response.json();
+        
+        if (data.status === 'OK' && data.results.length > 0) {
+          const coords = {
+            lat: data.results[0].geometry.location.lat,
+            lng: data.results[0].geometry.location.lng
+          };
+          console.log('✅ CartModal geocoded with original address:', coords);
+          return coords;
+        }
+      }
+      
+      console.error('❌ CartModal geocoding failed:', data.status, data.error_message);
+      throw new Error(`Could not find location for: ${address}`);
+      
     } catch (error) {
       console.error('❌ CartModal geocoding error:', error);
-      throw error; // Don't fallback, let the calling function handle it
+      throw error;
     }
   };
 
