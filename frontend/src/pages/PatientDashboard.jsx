@@ -41,27 +41,52 @@ export default function PatientDashboard() {
     
     // Initialize socket for incoming calls
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    console.log('Patient user data:', user);
+    
     if (user.id || user._id) {
-      const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const newSocket = io(socketUrl);
+      let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
+      socketUrl = socketUrl.replace('/api', '');
+      console.log('Patient socket URL:', socketUrl);
+      
+      const newSocket = io(socketUrl, {
+        transports: ['websocket', 'polling']
+      });
       setSocket(newSocket);
       
       const userId = user.id || user._id;
       console.log('Patient joining room:', `patient_${userId}`);
       
       newSocket.on('connect', () => {
-        console.log('Patient socket connected');
+        console.log('✅ Patient socket connected with ID:', newSocket.id);
         newSocket.emit('joinPatientRoom', userId);
+        console.log('🏠 Patient joined room:', `patient_${userId}`);
+      });
+      
+      newSocket.on('disconnect', () => {
+        console.log('❌ Patient socket disconnected');
+      });
+      
+      newSocket.on('roomJoined', (data) => {
+        console.log('✅ Room joined confirmation:', data);
       });
       
       newSocket.on('incomingCall', (callData) => {
-        console.log('Incoming call received:', callData);
+        console.log('📞 Incoming call received:', callData);
+        alert('Incoming video call from Dr. ' + callData.doctor.name);
         setIncomingCall(callData);
       });
       
+      // Test event listener
+      newSocket.on('test', (data) => {
+        console.log('Test event received:', data);
+      });
+      
       return () => {
+        console.log('Cleaning up patient socket');
         newSocket.disconnect();
       };
+    } else {
+      console.log('No user found, cannot initialize socket');
     }
   }, []);
   
@@ -194,6 +219,31 @@ export default function PatientDashboard() {
           </p>
         </div>
 
+        {/* Socket Test - Remove in production */}
+        <Card className="mb-4 border-dashed border-2 border-yellow-300 bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Socket Status: {socket?.connected ? '✅ Connected' : '❌ Disconnected'}</p>
+                <p className="text-xs text-muted-foreground">Socket ID: {socket?.id || 'Not connected'}</p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  const user = JSON.parse(localStorage.getItem('user') || '{}');
+                  console.log('Manual test - User ID:', user.id || user._id);
+                  if (socket) {
+                    socket.emit('test', { message: 'Test from patient' });
+                  }
+                }}
+              >
+                Test Socket
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader className="text-center">

@@ -21,6 +21,8 @@ export default function HospitalDashboard() {
   const [patientPhone, setPatientPhone] = useState('');
   const [isStartingCall, setIsStartingCall] = useState(false);
   const [socket, setSocket] = useState(null);
+  const [availablePatients, setAvailablePatients] = useState([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,9 +30,15 @@ export default function HospitalDashboard() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setCurrentUser(user);
     
+    // Load available patients
+    loadPatients();
+    
     // Initialize socket for video calls
     if (user.id || user._id) {
-      const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      let socketUrl = import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api';
+      // Remove /api suffix for socket connection
+      socketUrl = socketUrl.replace('/api', '');
+      console.log('Socket URL:', socketUrl);
       const newSocket = io(socketUrl);
       setSocket(newSocket);
       
@@ -59,11 +67,17 @@ export default function HospitalDashboard() {
   }, [navigate]);
   
   const startVideoCall = async () => {
-    if (!patientPhone.trim()) return;
+    if (!patientPhone.trim()) {
+      alert('Please enter a patient phone number');
+      return;
+    }
     
     setIsStartingCall(true);
+    console.log('Starting video call with patient:', patientPhone);
+    
     try {
-      const response = await videoCallAPI.startCall(patientPhone);
+      const response = await videoCallAPI.startCall(patientPhone.trim());
+      console.log('Video call response:', response);
       const data = response.data;
       
       if (data.success) {
@@ -75,9 +89,47 @@ export default function HospitalDashboard() {
       }
     } catch (error) {
       console.error('Error starting call:', error);
-      alert(error.response?.data?.message || 'Failed to start call');
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
+      let errorMessage = 'Failed to start call';
+      if (error.response?.status === 404) {
+        errorMessage = 'Video call service not available. Please check your connection.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
       setIsStartingCall(false);
     }
+  };
+  
+  const loadPatients = async () => {
+    setLoadingPatients(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://nabhasih-1.onrender.com/api'}/video-calls/patients`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePatients(data.patients || []);
+      } else {
+        console.error('Failed to load patients');
+      }
+    } catch (error) {
+      console.error('Error loading patients:', error);
+    }
+    setLoadingPatients(false);
   };
   const stats = [
     { title: "Today's Patients", value: "42", change: "+8%", icon: Users },
@@ -204,30 +256,76 @@ export default function HospitalDashboard() {
           </TabsContent>
 
           <TabsContent value="video-call">
-            <Card>
-              <CardHeader>
-                <CardTitle>Start Video Call</CardTitle>
-                <CardDescription>Enter patient's phone number to initiate a video consultation</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="max-w-md">
-                  <label className="text-sm font-medium mb-2 block">Patient Phone Number</label>
-                  <Input
-                    placeholder="Enter patient's phone number"
-                    value={patientPhone}
-                    onChange={(e) => setPatientPhone(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  onClick={startVideoCall}
-                  disabled={!patientPhone || isStartingCall}
-                  className="w-full max-w-md"
-                >
-                  <Video className="mr-2 h-4 w-4" />
-                  {isStartingCall ? 'Starting Call...' : 'Start Video Call'}
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Start Video Call</CardTitle>
+                  <CardDescription>Enter patient's phone number to initiate a video consultation</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Patient Phone Number</label>
+                    <Input
+                      placeholder="Enter patient's phone number (e.g., 9876543210)"
+                      value={patientPhone}
+                      onChange={(e) => setPatientPhone(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter 10-digit phone number without country code
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={startVideoCall}
+                    disabled={!patientPhone || isStartingCall}
+                    className="w-full"
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    {isStartingCall ? 'Starting Call...' : 'Start Video Call'}
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Available Patients</CardTitle>
+                      <CardDescription>Click on a patient to use their phone number</CardDescription>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={loadPatients}
+                      disabled={loadingPatients}
+                    >
+                      {loadingPatients ? 'Loading...' : 'Refresh'}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {availablePatients.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        {loadingPatients ? 'Loading patients...' : 'No patients found. Click Refresh to load.'}
+                      </p>
+                    ) : (
+                      availablePatients.map((patient, index) => (
+                        <div 
+                          key={index}
+                          className="p-2 border rounded cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setPatientPhone(patient.phone)}
+                        >
+                          <div className="font-medium text-sm">{patient.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {patient.phone} • {patient.village}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="queue">
