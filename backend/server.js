@@ -158,6 +158,9 @@ app.use("/health-data", (req, res) => {
 app.use("/video-calls", (req, res) => {
   res.redirect(308, `/api/video-calls${req.path}`);
 });
+app.use("/online-prescriptions", (req, res) => {
+  res.redirect(308, `/api/online-prescriptions${req.path}`);
+});
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
