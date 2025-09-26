@@ -54,20 +54,14 @@ router.post('/', [
       return res.status(404).json({ message: 'Doctor not found' });
     }
 
-    // Check if doctor is available on the selected day
-    const selectedDate = new Date(date);
-    const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
-    
-    if (!doctor.availableDays || !doctor.availableDays.includes(dayName)) {
-      return res.status(400).json({ message: 'Doctor is not available on this day' });
-    }
+    // Allow appointments on any day - removed availability check
 
-    // Check if slot is available
+    // Check if slot is available (exclude completed and cancelled appointments)
     const existingAppointment = await Appointment.findOne({
       doctor: doctorId,
       date: new Date(date),
       time,
-      status: { $ne: 'cancelled' }
+      status: { $nin: ['cancelled', 'completed'] }
     });
 
     if (existingAppointment) {
@@ -300,12 +294,7 @@ router.get('/doctors', async (req, res) => {
     let doctors = await User.find(query)
       .select('firstName lastName specialization hospital consultationFee availableDays isVerified');
     
-    // Filter by available day
-    if (day) {
-      doctors = doctors.filter(doctor => 
-        doctor.availableDays && doctor.availableDays.includes(day)
-      );
-    }
+    // Show all doctors regardless of day - removed day filtering
 
     res.json(doctors);
   } catch (error) {
