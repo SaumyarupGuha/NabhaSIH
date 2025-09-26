@@ -40,31 +40,33 @@ router.patch('/profile', auth, async (req, res) => {
   }
 });
 
-// Get all users (admin only, except for role=patient which is public for simulator)
+// Get all users (admin only, except for role=patient/doctor which allows authenticated access)
 router.get('/', async (req, res) => {
   try {
     const { role, verified } = req.query;
     
     // Allow public access only for getting patients (for simulator)
-    if (role !== 'patient') {
+    // Allow authenticated access for getting doctors (for consultations)
+    if (role !== 'patient' && role !== 'doctor') {
       // Require admin auth for other roles
       if (!req.headers.authorization) {
         return res.status(401).json({ message: 'Access denied' });
       }
-      // Apply auth middleware manually
-      const authMiddleware = [auth, authorize('admin')];
-      // This is a simplified check - in production, properly apply middleware
     }
     
     let query = {};
     if (role) query.role = role;
     if (verified !== undefined) query.isVerified = verified === 'true';
 
-    const users = await User.find(query).select('_id firstName lastName role');
-    res.json({ success: true, data: users });
+    const selectFields = role === 'doctor' 
+      ? '_id firstName lastName role specialization' 
+      : '_id firstName lastName role';
+    
+    const users = await User.find(query).select(selectFields);
+    res.json(users);
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
