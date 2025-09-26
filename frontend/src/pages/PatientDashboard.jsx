@@ -11,7 +11,10 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
-import { appointmentAPI, prescriptionAPI } from "../lib/api";
+import { appointmentAPI, prescriptionAPI, videoCallAPI } from "../lib/api";
+import IncomingCallModal from "../components/IncomingCallModal";
+import { HealthChatbot } from "../components/HealthChatbot";
+import { DoctorConsultation } from "../components/DoctorConsultation";
 import {
   Calendar,
   Clock,
@@ -21,7 +24,9 @@ import {
   Phone,
   Plus,
   Eye,
+  MessageCircle,
 } from "lucide-react";
+import io from "socket.io-client";
 
 export default function PatientDashboard() {
   const [appointments, setAppointments] = useState([]);
@@ -55,30 +60,34 @@ export default function PatientDashboard() {
     fetchData();
 
     // Initialize socket for incoming calls
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user.id || user._id) {
-      const socketUrl =
-        import.meta.env.VITE_API_URL?.replace("/api", "") ||
-        "http://localhost:5000";
-      const newSocket = io(socketUrl);
-      setSocket(newSocket);
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user.id || user._id) {
+        const socketUrl =
+          import.meta.env.VITE_API_URL?.replace("/api", "") ||
+          "http://localhost:5000";
+        const newSocket = io(socketUrl);
+        setSocket(newSocket);
 
-      const userId = user.id || user._id;
-      console.log("Patient joining room:", `patient_${userId}`);
+        const userId = user.id || user._id;
+        console.log("Patient joining room:", `patient_${userId}`);
 
-      newSocket.on("connect", () => {
-        console.log("Patient socket connected");
-        newSocket.emit("joinPatientRoom", userId);
-      });
+        newSocket.on("connect", () => {
+          console.log("Patient socket connected");
+          newSocket.emit("joinPatientRoom", userId);
+        });
 
-      newSocket.on("incomingCall", (callData) => {
-        console.log("Incoming call received:", callData);
-        setIncomingCall(callData);
-      });
+        newSocket.on("incomingCall", (callData) => {
+          console.log("Incoming call received:", callData);
+          setIncomingCall(callData);
+        });
 
-      return () => {
-        newSocket.disconnect();
-      };
+        return () => {
+          newSocket.disconnect();
+        };
+      }
+    } catch (error) {
+      console.error("Socket initialization error:", error);
     }
   }, []);
 
@@ -240,7 +249,7 @@ export default function PatientDashboard() {
       <div className="min-h-screen bg-background">
         <Navigation />
         <div className="flex items-center justify-center py-20">
-          <div className="text-center">{t("common:loading")}</div>
+          <div className="text-center">Loading...</div>
         </div>
       </div>
     );

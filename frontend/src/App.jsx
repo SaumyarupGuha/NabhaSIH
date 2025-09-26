@@ -7,6 +7,8 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import PatientDashboard from "./pages/PatientDashboard";
+import PatientDashboardTest from "./pages/PatientDashboardTest";
+import PatientDashboardSimple from "./pages/PatientDashboardSimple";
 import ConsultationsPage from "./pages/ConsultationsPage";
 import PharmaciesPage from "./pages/PharmaciesPage";
 import HospitalsPage from "./pages/HospitalsPage";
@@ -24,7 +26,9 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
-              <Route path="/patient" element={<PatientDashboard />} />
+              <Route path="/patient" element={<PatientDashboardSimple />} />
+              <Route path="/patient-simple" element={<PatientDashboardSimple />} />
+              <Route path="/patient-test" element={<PatientDashboardTest />} />
               <Route path="/consultations" element={<ConsultationsPage />} />
               <Route path="/pharmacies" element={<PharmaciesPage />} />
               <Route path="/hospitals" element={<HospitalsPage />} />
