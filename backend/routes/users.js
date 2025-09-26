@@ -73,9 +73,10 @@ router.get('/', async (req, res) => {
 // Verify user (admin only)
 router.patch('/:id/verify', [auth, authorize('admin')], async (req, res) => {
   try {
+    const { isVerified } = req.body;
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { isVerified: true },
+      { isVerified },
       { new: true }
     ).select('-password');
 
@@ -83,9 +84,46 @@ router.patch('/:id/verify', [auth, authorize('admin')], async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json({ message: 'User verified successfully', user });
+    res.json({ message: 'User verification updated successfully', user });
   } catch (error) {
     console.error('Verify user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin dashboard - get all users with stats
+router.get('/admin/dashboard', auth, authorize('admin'), async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password');
+    
+    const stats = {
+      total: users.length,
+      patients: users.filter(u => u.role === 'patient').length,
+      doctors: users.filter(u => u.role === 'doctor').length,
+      pharmacists: users.filter(u => u.role === 'pharmacist').length,
+      verified: users.filter(u => u.isVerified).length,
+      unverified: users.filter(u => !u.isVerified).length
+    };
+
+    res.json({ users, stats });
+  } catch (error) {
+    console.error('Admin dashboard error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin - delete user
+router.delete('/admin/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
