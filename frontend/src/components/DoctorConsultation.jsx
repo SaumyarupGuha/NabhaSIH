@@ -95,7 +95,9 @@ export const DoctorConsultation = ({ isOpen, onClose }) => {
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/online-prescriptions`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem('token')}` 
+        },
         body: formData
       });
 
@@ -194,33 +196,9 @@ export const DoctorConsultation = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <div className="border-t pt-4">
-              <h3 className="font-medium mb-3">Previous Consultations</h3>
-              <div className="space-y-3 max-h-32 overflow-y-auto">
-                {consultations.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No previous consultations</p>
-                ) : (
-                  consultations.map((consultation) => (
-                    <div key={consultation._id} className="p-3 border rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium text-sm">{consultation.doctorName || 'Doctor'}</span>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          consultation.hasNewReply ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {consultation.hasNewReply ? 'New Reply' : 'Sent'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">{consultation.description}</p>
-                      {consultation.reply && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded">
-                          <p className="text-sm text-blue-800">{consultation.reply}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+
+
+
           </div>
           
           <div className="flex gap-2">

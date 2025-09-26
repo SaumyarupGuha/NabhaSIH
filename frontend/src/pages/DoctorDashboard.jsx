@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Navigation } from '../components/Navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { User, MessageCircle, Calendar, FileText, Bell } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Navigation } from "../components/Navigation";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
+import { User, MessageCircle, Calendar, FileText, Bell } from "lucide-react";
 
 export default function DoctorDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
   const [consultations, setConsultations] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -16,66 +21,81 @@ export default function DoctorDashboard() {
 
   const fetchConsultations = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/consultations/doctor`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/online-prescriptions/doctor`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
       const data = await response.json();
       setConsultations(data);
-      setUnreadCount(data.filter(c => !c.isRead).length);
+      setUnreadCount(data.filter((c) => !c.isRead).length);
     } catch (error) {
-      console.error('Error fetching consultations:', error);
+      console.error("Error fetching consultations:", error);
     }
   };
 
   const handleReply = async (consultationId, reply) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/consultations/${consultationId}/reply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ reply })
-      });
+      await fetch(
+        `${
+          import.meta.env.VITE_API_URL
+        }/online-prescriptions/${consultationId}/reply`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ answer: reply }),
+        }
+      );
       fetchConsultations();
     } catch (error) {
-      console.error('Error sending reply:', error);
+      console.error("Error sending reply:", error);
     }
   };
 
   const markAsRead = async (consultationId) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/consultations/${consultationId}/read`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await fetch(
+        `${
+          import.meta.env.VITE_API_URL
+        }/online-prescriptions/${consultationId}/read`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
       fetchConsultations();
     } catch (error) {
-      console.error('Error marking as read:', error);
+      console.error("Error marking as read:", error);
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Doctor Dashboard</h1>
-          <p className="text-muted-foreground">Manage your patients and consultations</p>
+          <p className="text-muted-foreground">
+            Manage your patients and consultations
+          </p>
         </div>
 
         <div className="flex gap-6 mb-8">
           <Button
-            variant={activeTab === 'overview' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('overview')}
+            variant={activeTab === "overview" ? "default" : "outline"}
+            onClick={() => setActiveTab("overview")}
           >
             <Calendar className="h-4 w-4 mr-2" />
             Overview
           </Button>
           <Button
-            variant={activeTab === 'consultations' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('consultations')}
+            variant={activeTab === "consultations" ? "default" : "outline"}
+            onClick={() => setActiveTab("consultations")}
             className="relative"
           >
             <MessageCircle className="h-4 w-4 mr-2" />
@@ -88,7 +108,7 @@ export default function DoctorDashboard() {
           </Button>
         </div>
 
-        {activeTab === 'overview' && (
+        {activeTab === "overview" && (
           <div className="grid md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
@@ -131,7 +151,7 @@ export default function DoctorDashboard() {
           </div>
         )}
 
-        {activeTab === 'consultations' && (
+        {activeTab === "consultations" && (
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -139,7 +159,9 @@ export default function DoctorDashboard() {
               </CardHeader>
               <CardContent>
                 {consultations.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No consultations yet</p>
+                  <p className="text-muted-foreground text-center py-8">
+                    No consultations yet
+                  </p>
                 ) : (
                   <div className="space-y-4">
                     {consultations.map((consultation) => (
@@ -162,13 +184,13 @@ export default function DoctorDashboard() {
 }
 
 const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
-  const [replyText, setReplyText] = useState('');
+  const [replyText, setReplyText] = useState("");
   const [showReplyForm, setShowReplyForm] = useState(false);
 
   const handleSubmitReply = () => {
     if (replyText.trim()) {
       onReply(consultation._id, replyText);
-      setReplyText('');
+      setReplyText("");
       setShowReplyForm(false);
     }
   };
@@ -178,39 +200,59 @@ const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
   };
 
   return (
-    <div className={`p-4 border rounded-lg ${!consultation.isRead ? 'bg-blue-50 border-blue-200' : ''}`}>
+    <div
+      className={`p-4 border rounded-lg ${
+        !consultation.isRead ? "bg-blue-50 border-blue-200" : ""
+      }`}
+    >
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="font-medium">{consultation.patientName}</h3>
+          <h3 className="font-medium">{consultation.title}</h3>
           <p className="text-sm text-muted-foreground">
+            Patient: {consultation.patientId?.firstName}{" "}
+            {consultation.patientId?.lastName} •{" "}
             {new Date(consultation.createdAt).toLocaleString()}
           </p>
         </div>
         <div className="flex gap-2">
-          {!consultation.isRead && (
-            <Badge variant="destructive" className="text-xs">New</Badge>
+          {!consultation.isRead && !consultation.hasReply && (
+            <Badge variant="destructive" className="text-xs">
+              New
+            </Badge>
           )}
           {consultation.hasReply && (
-            <Badge variant="secondary" className="text-xs">Replied</Badge>
+            <Badge variant="secondary" className="text-xs">
+              Replied
+            </Badge>
           )}
         </div>
       </div>
 
       <div className="mb-3">
         <p className="text-sm">{consultation.description}</p>
-        {consultation.photoUrl && (
-          <img 
-            src={consultation.photoUrl} 
-            alt="Patient submission" 
-            className="mt-2 max-w-xs rounded-lg"
-          />
+        {consultation.photoUrl ? (
+          <div className="mt-2">
+            <img
+              src={consultation.photoUrl}
+              alt="Patient consultation"
+              className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => window.open(consultation.photoUrl, "_blank")}
+              onError={(e) => {
+                console.error("Image failed to load:", consultation.photoUrl);
+                e.target.style.display = "none";
+              }}
+            />
+            <p className="text-xs text-gray-500 mt-1">📷 Photo attached</p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mt-2">No photo attached</p>
         )}
       </div>
 
-      {consultation.reply && (
+      {consultation.answer && (
         <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded">
           <p className="text-sm font-medium text-green-800">Your Reply:</p>
-          <p className="text-sm text-green-700">{consultation.reply}</p>
+          <p className="text-sm text-green-700">{consultation.answer}</p>
         </div>
       )}
 
@@ -220,7 +262,7 @@ const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
             Mark as Read
           </Button>
         )}
-        
+
         {!consultation.hasReply && (
           <Button size="sm" onClick={() => setShowReplyForm(!showReplyForm)}>
             Reply
@@ -240,7 +282,11 @@ const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
             <Button size="sm" onClick={handleSubmitReply}>
               Send Reply
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowReplyForm(false)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowReplyForm(false)}
+            >
               Cancel
             </Button>
           </div>

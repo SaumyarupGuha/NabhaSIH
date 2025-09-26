@@ -333,6 +333,16 @@ export default function PatientDashboardSimple() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-gray-600 mb-2">{consultation.description}</p>
+                    {consultation.photoUrl && (
+                      <div className="mt-2 mb-3">
+                        <img 
+                          src={consultation.photoUrl} 
+                          alt="Consultation photo" 
+                          className="w-20 h-20 object-cover rounded border cursor-pointer"
+                          onClick={() => window.open(consultation.photoUrl, '_blank')}
+                        />
+                      </div>
+                    )}
                     {consultation.answer && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg">
                         <p className="text-sm font-medium text-blue-800">Doctor's Reply:</p>

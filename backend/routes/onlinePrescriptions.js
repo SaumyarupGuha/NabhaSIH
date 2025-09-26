@@ -1,41 +1,36 @@
 const express = require('express');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const OnlinePrescription = require('../models/OnlinePrescription');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 
-const router = express.Router();
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Configure multer for memory storage
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  }
-});
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+const router = express.Router();
 
 // Create online prescription request (Patient)
 router.post('/', auth, upload.single('photo'), async (req, res) => {
+  console.log('🚀 POST /online-prescriptions - Request started');
+  console.log('📧 Headers:', req.headers);
+  console.log('📦 Body:', req.body);
+  console.log('👤 User from auth:', req.user);
+  
   try {
     console.log('📝 Creating prescription request');
     console.log('👤 Patient ID:', req.user.id);
-    console.log('👨‍⚕️ Doctor ID:', req.body.doctorId);
+    console.log('👨⚕️ Doctor ID:', req.body.doctorId);
     console.log('📋 Title:', req.body.title);
     console.log('📄 Description:', req.body.description);
-    console.log('📷 Photo uploaded:', !!req.file);
-    
-    if (req.file) {
-      console.log('📷 Photo details:', {
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        filename: req.file.originalname
-      });
-    }
     
     const { doctorId, title, description } = req.body;
     
@@ -44,26 +39,54 @@ router.post('/', auth, upload.single('photo'), async (req, res) => {
       return res.status(400).json({ error: 'Doctor, title, and description are required' });
     }
     
-    const prescription = new OnlinePrescription({
+    let photoUrl = null;
+    if (req.file) {
+      console.log('📸 Uploading photo to Cloudinary...');
+      try {
+        const result = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream(
+            { folder: 'consultations' },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          ).end(req.file.buffer);
+        });
+        photoUrl = result.secure_url;
+        console.log('✅ Photo uploaded:', photoUrl);
+      } catch (error) {
+        console.error('❌ Cloudinary upload error:', error);
+      }
+    }
+    
+    console.log('📝 Creating OnlinePrescription object...');
+    const prescriptionData = {
       patientId: req.user.id,
       doctorId,
-      consultationId: new require('mongoose').Types.ObjectId(),
       title,
       description,
-      photo: req.file ? {
-        data: req.file.buffer,
-        contentType: req.file.mimetype,
-        filename: req.file.originalname
-      } : null
-    });
+      photoUrl
+    };
+    console.log('📊 Prescription data:', prescriptionData);
+    
+    const prescription = new OnlinePrescription(prescriptionData);
+    console.log('📝 OnlinePrescription object created');
 
     console.log('💾 Saving to database...');
     const savedPrescription = await prescription.save();
-    console.log('✅ Prescription saved with ID:', savedPrescription._id);
+    console.log('✅ Prescription saved successfully with ID:', savedPrescription._id);
+    console.log('📊 Saved prescription:', savedPrescription);
     
     res.json({ success: true, prescription: savedPrescription });
+    console.log('✅ Response sent successfully');
   } catch (error) {
-    console.error('❌ Error creating prescription:', error);
+    console.error('❌ Error creating prescription:');
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    if (error.errors) {
+      console.error('❌ Validation errors:', error.errors);
+    }
     res.status(500).json({ error: error.message });
   }
 });

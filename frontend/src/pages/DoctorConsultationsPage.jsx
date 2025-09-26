@@ -132,10 +132,10 @@ const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            {!consultation.isRead && (
+            {!consultation.isRead && !consultation.answer && (
               <Badge variant="destructive">New</Badge>
             )}
-            {consultation.hasReply && (
+            {consultation.answer && (
               <Badge variant="secondary">Replied</Badge>
             )}
           </div>
@@ -147,12 +147,17 @@ const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
           <h4 className="font-medium mb-2">Patient's Request:</h4>
           <p className="text-sm font-semibold text-gray-800 mb-1">{consultation.title}</p>
           <p className="text-sm bg-gray-50 p-3 rounded-lg">{consultation.description}</p>
-          {consultation.photo && (
+          {consultation.photoUrl && (
             <div className="mt-2">
               <img 
-                src={consultation.photo} 
+                src={consultation.photoUrl} 
                 alt="Patient submission" 
-                className="max-w-xs rounded-lg border"
+                className="max-w-xs rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => window.open(consultation.photoUrl, '_blank')}
+                onError={(e) => {
+                  console.error('Image failed to load:', consultation.photoUrl);
+                  e.target.style.display = 'none';
+                }}
               />
             </div>
           )}
@@ -168,13 +173,13 @@ const ConsultationCard = ({ consultation, onReply, onMarkRead }) => {
         )}
 
         <div className="flex gap-2">
-          {!consultation.isRead && (
+          {!consultation.isRead && !consultation.answer && (
             <Button size="sm" variant="outline" onClick={() => onMarkRead(consultation._id)}>
               Mark as Read
             </Button>
           )}
           
-          {!consultation.hasReply && (
+          {!consultation.answer && (
             <Button size="sm" onClick={() => setShowReplyForm(!showReplyForm)}>
               <MessageCircle className="h-4 w-4 mr-2" />
               Reply

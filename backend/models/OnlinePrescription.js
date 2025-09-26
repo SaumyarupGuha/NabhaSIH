@@ -11,11 +11,7 @@ const onlinePrescriptionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  consultationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Consultation',
-    required: true
-  },
+
   title: {
     type: String,
     required: true
@@ -24,10 +20,8 @@ const onlinePrescriptionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  photo: {
-    data: Buffer,
-    contentType: String,
-    filename: String
+  photoUrl: {
+    type: String
   },
   answer: {
     type: String
