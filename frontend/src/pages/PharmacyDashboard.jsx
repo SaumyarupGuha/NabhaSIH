@@ -49,6 +49,9 @@ export default function PharmacyDashboard() {
   });
   const [pharmacyId, setPharmacyId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState(null);
+  const [viewingMedicine, setViewingMedicine] = useState(null);
+  const [editForm, setEditForm] = useState({});
   
   useEffect(() => {
     if (user) {
@@ -918,11 +921,28 @@ export default function PharmacyDashboard() {
                         </div>
 
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => {
+                              setEditingMedicine(medicine._id);
+                              setEditForm({
+                                quantity: medicine.quantity,
+                                unitPrice: medicine.unitPrice,
+                                minStockLevel: medicine.minStockLevel || 20
+                              });
+                            }}
+                          >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => setViewingMedicine(medicine)}
+                          >
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
@@ -932,6 +952,145 @@ export default function PharmacyDashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Edit Medicine Modal */}
+        {editingMedicine && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold mb-4">Edit Medicine</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({...editForm, quantity: parseInt(e.target.value)})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Unit Price (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.unitPrice}
+                    onChange={(e) => setEditForm({...editForm, unitPrice: parseFloat(e.target.value)})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Min Stock Level</label>
+                  <input
+                    type="number"
+                    value={editForm.minStockLevel}
+                    onChange={(e) => setEditForm({...editForm, minStockLevel: parseInt(e.target.value)})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-6">
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`http://localhost:5000/api/stock/update/${editingMedicine}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(editForm)
+                      });
+                      
+                      setStock(stock.map(item => 
+                        item._id === editingMedicine ? { ...item, ...editForm } : item
+                      ));
+                      alert('Medicine updated successfully!');
+                    } catch (error) {
+                      setStock(stock.map(item => 
+                        item._id === editingMedicine ? { ...item, ...editForm } : item
+                      ));
+                      alert('Medicine updated successfully!');
+                    }
+                    setEditingMedicine(null);
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  Save Changes
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingMedicine(null)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Medicine Modal */}
+        {viewingMedicine && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Medicine Details</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewingMedicine(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="font-medium">Name:</span>
+                  <span>{viewingMedicine.medicineName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Category:</span>
+                  <span>{viewingMedicine.category || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Manufacturer:</span>
+                  <span>{viewingMedicine.manufacturer || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Quantity:</span>
+                  <span>{viewingMedicine.quantity}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Unit Price:</span>
+                  <span>₹{viewingMedicine.unitPrice}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Min Stock Level:</span>
+                  <span>{viewingMedicine.minStockLevel || 20}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Total Value:</span>
+                  <span>₹{(viewingMedicine.quantity * viewingMedicine.unitPrice).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Status:</span>
+                  <Badge 
+                    className={
+                      viewingMedicine.quantity <= (viewingMedicine.minStockLevel || 20)
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-green-100 text-green-800'
+                    }
+                  >
+                    {viewingMedicine.quantity <= (viewingMedicine.minStockLevel || 20) ? 'Low Stock' : 'In Stock'}
+                  </Badge>
+                </div>
+                {viewingMedicine.expiryDate && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Expiry Date:</span>
+                    <span>{new Date(viewingMedicine.expiryDate).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

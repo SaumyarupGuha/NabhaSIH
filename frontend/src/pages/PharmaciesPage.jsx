@@ -13,6 +13,7 @@ import { MedicineSearch } from '../components/MedicineSearch';
 import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
+import { AlternativeMedicines } from '../components/AlternativeMedicines';
 import io from 'socket.io-client';
 
 export default function PharmaciesPage() {
@@ -33,6 +34,7 @@ export default function PharmaciesPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [socket, setSocket] = useState(null);
   const [pharmacyRatings, setPharmacyRatings] = useState({});
+  const [medicineSearchQuery, setMedicineSearchQuery] = useState('');
 
   useEffect(() => {
     // Don't call getCurrentLocation immediately to avoid permission prompt on page load
@@ -80,12 +82,12 @@ export default function PharmaciesPage() {
           console.error('Error fetching medicines:', error);
           // Use fallback data
           setAvailableMedicines([
-            { _id: '1', name: "Paracetamol 500mg", price: "₹2.50", unitPrice: 2.50, availability: "In Stock", quantity: 100 },
-            { _id: '2', name: "Amoxicillin 250mg", price: "₹8.00", unitPrice: 8.00, availability: "In Stock", quantity: 50 },
+            { _id: '1', name: "Paracetamol 500mg", price: "₹2.50", unitPrice: 2.50, availability: "Out of Stock", quantity: 0 },
+            { _id: '2', name: "Amoxicillin 250mg", price: "₹8.00", unitPrice: 8.00, availability: "Out of Stock", quantity: 0 },
             { _id: '3', name: "Cough Syrup", price: "₹45.00", unitPrice: 45.00, availability: "In Stock", quantity: 25 },
-            { _id: '4', name: "Insulin Injection", price: "₹120.00", unitPrice: 120.00, availability: "In Stock", quantity: 15 },
+            { _id: '4', name: "Ibuprofen", price: "₹120.00", unitPrice: 120.00, availability: "Out of Stock", quantity: 0 },
             { _id: '5', name: "Vitamin D3", price: "₹5.00", unitPrice: 5.00, availability: "In Stock", quantity: 80 },
-            { _id: '6', name: "Aspirin 75mg", price: "₹1.50", unitPrice: 1.50, availability: "Limited Stock", quantity: 5 },
+            { _id: '6', name: "Aspirin 75mg", price: "₹1.50", unitPrice: 1.50, availability: "Out of Stock", quantity: 0 },
           ]);
         }
       } catch (error) {
@@ -786,9 +788,22 @@ export default function PharmaciesPage() {
                 <CardDescription>Order common medicines quickly</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-
-                  <div className="space-y-3">
-                    {availableMedicines.slice(0, 6).map((medicine, index) => (
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search medicines..." 
+                    className="pl-10"
+                    value={medicineSearchQuery}
+                    onChange={(e) => setMedicineSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-3">
+                    {availableMedicines
+                      .filter(medicine => 
+                        medicine.name.toLowerCase().includes(medicineSearchQuery.toLowerCase())
+                      )
+                      .slice(0, 6)
+                      .map((medicine, index) => (
                       <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-medium text-sm">{medicine.name}</h4>
@@ -810,12 +825,24 @@ export default function PharmaciesPage() {
                             variant="outline" 
                             className="text-xs"
                             onClick={() => addToLocalCart(medicine)}
+                            disabled={medicine.availability === "Out of Stock"}
                           >
                             Add
                           </Button>
                         </div>
+                        <AlternativeMedicines 
+                          medicine={medicine} 
+                          onAddAlternative={addToLocalCart}
+                        />
                       </div>
                     ))}
+                    {medicineSearchQuery && availableMedicines.filter(medicine => 
+                      medicine.name.toLowerCase().includes(medicineSearchQuery.toLowerCase())
+                    ).length === 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        No medicines found matching "{medicineSearchQuery}"
+                      </div>
+                    )}
                   </div>
                 <Button 
                   className="w-full" 
