@@ -29,7 +29,12 @@ export default function LoginPage() {
     const result = await login(formData);
     
     if (result.success) {
-      navigate('/');
+      // Redirect based on user role
+      if (formData.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } else {
       setError(result.error);
     }
