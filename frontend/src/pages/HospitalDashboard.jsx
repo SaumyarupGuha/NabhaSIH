@@ -13,6 +13,7 @@ import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { DoctorAlerts } from '../components/DoctorAlerts';
 import { FloatingAlerts } from '../components/FloatingAlerts';
 import { DoctorQueue } from '../components/DoctorQueue';
+import { DoctorConsultationView } from '../components/DoctorConsultationView';
 import {
   Users, Calendar, FileText, Pill, Clock, Phone, Stethoscope,
   CheckCircle, Plus, Search, Eye, Edit, Video
@@ -292,21 +293,14 @@ export default function HospitalDashboard() {
           ))}
         </div>
 
-        <Tabs defaultValue="alerts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="alerts">Health Alerts</TabsTrigger>
+        <Tabs defaultValue="queue" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="queue">Patient Queue</TabsTrigger>
             <TabsTrigger value="video-call">Video Call</TabsTrigger>
             <TabsTrigger value="consultations">Consultations</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger> 
             <TabsTrigger value="records">Medical Records</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="alerts">
-            {currentUser && currentUser._id && (
-              <DoctorAlerts doctorId={currentUser._id} />
-            )}
-          </TabsContent>
 
           <TabsContent value="video-call">
             <div className="grid lg:grid-cols-2 gap-6">
@@ -386,111 +380,7 @@ export default function HospitalDashboard() {
           </TabsContent>
 
           <TabsContent value="consultations">
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Consultations</CardTitle>
-                    <CardDescription>View and manage completed consultations</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {recentConsultations.map((consultation) => (
-                        <div key={consultation.id} className="border border-border rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-semibold">{consultation.patient}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                Age: {consultation.age} • Date: {consultation.date}
-                              </p>
-                            </div>
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
-                              Completed
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2 mb-4">
-                            <div>
-                              <span className="text-sm font-medium">Diagnosis: </span>
-                              <span className="text-sm text-muted-foreground">{consultation.diagnosis}</span>
-                            </div>
-                            <div>
-                              <span className="text-sm font-medium">Prescription: </span>
-                              <span className="text-sm text-muted-foreground">{consultation.prescription}</span>
-                            </div>
-                            <div>
-                              <span className="text-sm font-medium">Follow-up: </span>
-                              <span className="text-sm text-muted-foreground">{consultation.followUp}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Notes
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>New Consultation</CardTitle>
-                    <CardDescription>Record consultation details</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Patient Name</label>
-                      <Input placeholder="Enter patient name" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-sm font-medium">Age</label>
-                        <Input placeholder="Age" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Gender</label>
-                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                          <option value="">Select</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium">Symptoms</label>
-                      <Textarea placeholder="Describe symptoms..." rows={3} />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium">Diagnosis</label>
-                      <Textarea placeholder="Enter diagnosis..." rows={2} />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium">Prescription</label>
-                      <Textarea placeholder="Enter prescription details..." rows={3} />
-                    </div>
-
-                    <Button className="w-full">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Save Consultation
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            <DoctorConsultationView />
           </TabsContent>
 
           <TabsContent value="prescriptions">

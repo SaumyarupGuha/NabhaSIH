@@ -17,6 +17,7 @@ const PharmaciesPage = React.lazy(() => import('./pages/PharmaciesPage'));
 const HospitalsPage = React.lazy(() => import('./pages/HospitalsPage'));
 const HospitalDashboard = React.lazy(() => import('./pages/HospitalDashboard'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const DoctorConsultationsPage = React.lazy(() => import('./pages/DoctorConsultationsPage'));
 const VideoCall = React.lazy(() => import('./components/VideoCall'));
 
 
