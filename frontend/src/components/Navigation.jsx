@@ -37,6 +37,7 @@ export function Navigation() {
         return [
           ...baseItems,
           { href: "/hospital-dashboard", label: t('nav.doctorDashboard') },
+          { href: "/doctor-consultations", label: "Online Consultations" },
           { href: "/hospitals", label: t('nav.hospitals') },
         ];
       case "pharmacist":
