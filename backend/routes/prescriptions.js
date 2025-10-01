@@ -7,29 +7,6 @@ const router = express.Router();
 const { auth, authorize } = require('../middleware/auth');
 const Prescription = require('../models/Prescription');
 
-// Get user prescriptions
-router.get('/', auth, async (req, res) => {
-  try {
-    const prescriptions = await Prescription.find({ patient: req.user.id })
-      .populate('doctor', 'firstName lastName')
-      .sort({ createdAt: -1 });
-    
-    res.json({
-      success: true,
-      data: prescriptions
-    });
-  } catch (error) {
-    console.error('Error fetching prescriptions:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch prescriptions'
-    });
-  }
-});
-
-// Ensure dotenv is loaded
-require('dotenv').config();
-
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -40,8 +17,7 @@ cloudinary.config({
 
 console.log('Cloudinary config check:', {
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set',
-  api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Not set'
+  api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set'
 });
 
 // Configure multer
@@ -57,68 +33,35 @@ const upload = multer({
 // Upload to Cloudinary helper
 const uploadToCloudinary = (buffer) => {
   return new Promise((resolve, reject) => {
-    console.log('🔧 Starting Cloudinary upload...');
-    console.log('🔑 Using config:', {
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Missing',
-      api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Missing'
-    });
-    
-    const uploadStream = cloudinary.uploader.upload_stream(
+    cloudinary.uploader.upload_stream(
       { 
         resource_type: 'image', 
         folder: 'prescriptions',
-        transformation: [
-          { width: 1000, height: 1000, crop: 'limit' },
-          { quality: 'auto' }
-        ]
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
       },
       (error, result) => {
-        if (error) {
-          console.error('❌ Cloudinary error:', error);
-          reject(new Error(`Cloudinary upload failed: ${error.message}`));
-        } else {
-          console.log('✅ Cloudinary success:', result.secure_url);
-          resolve(result);
-        }
+        if (error) reject(error);
+        else resolve(result);
       }
-    );
-    
-    uploadStream.end(buffer);
+    ).end(buffer);
   });
 };
 
 // Extract text from uploaded prescription image
 router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No image file provided' });
-    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'No image file provided' });
 
-    console.log('📁 File received:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
-
-    console.log('☁️ Uploading to Cloudinary...');
-    console.log('🔧 Environment check:', {
+    console.log('Uploading to Cloudinary...');
+    console.log('Environment check:', {
       CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set',
+      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
       CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Not set'
     });
-
-    let uploadResult;
-    try {
-      uploadResult = await uploadToCloudinary(req.file.buffer);
-      console.log('✅ Cloudinary upload successful:', uploadResult.secure_url);
-    } catch (cloudinaryError) {
-      console.error('❌ Cloudinary upload failed:', cloudinaryError);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Failed to upload image to cloud storage: ' + cloudinaryError.message 
-      });
-    }
+    const uploadResult = await uploadToCloudinary(req.file.buffer);
+    console.log('Cloudinary URL:', uploadResult.secure_url);
 
     // OCR API request
     const response = await fetch(`https://api.apilayer.com/image_to_text/url?url=${encodeURIComponent(uploadResult.secure_url)}`, {
@@ -126,170 +69,115 @@ router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
       headers: { 'apikey': process.env.IMAGE_TO_TEXT_API_KEY }
     });
     
-    const text = await response.text();
-    console.log('OCR Response:', text);
+    const rawText = await response.text();
+    console.log('OCR Response:', rawText);
 
-    // Parse medicines from extracted text
-    let extractedText = text;
+    // Parse JSON response if it's JSON format
+    let extractedText = rawText;
     try {
-      const jsonData = JSON.parse(text);
-      extractedText = jsonData.all_text || text;
+      const jsonResponse = JSON.parse(rawText);
+      if (jsonResponse.all_text) {
+        extractedText = jsonResponse.all_text;
+      }
     } catch (e) {
-      // If not JSON, use text as is
+      // If not JSON, use raw text
+      extractedText = rawText;
     }
-    
+
+    // Parse medicines
     const medicines = parseMedicinesFromText(extractedText);
 
     // Save prescription to DB
-    try {
-      const prescription = new Prescription({
-        patient: req.user.id,
-        doctor: req.user.id,
-        appointment: new mongoose.Types.ObjectId(),
-        medicines: medicines.map(med => ({ name: med.name, quantity: med.quantity || 1 })),
-        diagnosis: 'Prescription from uploaded image',
-        status: 'active',
-        imageUrl: uploadResult.secure_url
-      });
-      await prescription.save();
-      console.log('💾 Prescription saved to DB:', prescription._id);
-    } catch (dbError) {
-      console.error('❌ Database save failed:', dbError);
-      // Continue anyway, return the extracted data
-    }
-
-    res.json({ 
-      success: true, 
-      data: { 
-        extractedText: text, 
-        medicines, 
-        imageUrl: uploadResult.secure_url 
-      } 
+    const prescription = new Prescription({
+      patient: req.user.id,
+      doctor: req.user.id,
+      appointment: new mongoose.Types.ObjectId(),
+      medicines: medicines.map(med => ({ name: med.name, quantity: med.quantity || 1 })),
+      diagnosis: 'Prescription from uploaded image',
+      status: 'active'
     });
+    await prescription.save();
+
+    res.json({ success: true, data: { extractedText: extractedText, medicines, prescriptionId: prescription._id, imageUrl: uploadResult.secure_url } });
 
   } catch (error) {
-    console.error('❌ General error in extract-text:', error);
+    console.error('Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Test Cloudinary upload route
-router.post('/test-upload', auth, upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No image file provided' });
-    }
-
-    console.log('🧪 Testing Cloudinary upload...');
-    console.log('📁 File info:', {
-      name: req.file.originalname,
-      size: req.file.size,
-      type: req.file.mimetype
-    });
-
-    const uploadResult = await uploadToCloudinary(req.file.buffer);
-    
-    console.log('✅ Upload successful!');
-    console.log('🔗 URL:', uploadResult.secure_url);
-    console.log('🆔 Public ID:', uploadResult.public_id);
-
-    res.json({
-      success: true,
-      message: 'Image uploaded successfully',
-      data: {
-        url: uploadResult.secure_url,
-        public_id: uploadResult.public_id
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Upload failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Upload failed: ' + error.message,
-      error: error.toString()
-    });
-  }
-});
-
 function parseMedicinesFromText(text) {
+  const medicineKeywords = [
+    'paracetamol', 'crocin', 'aspirin', 'asprin', 'ibuprofen', 'amoxicillin', 'azithromycin', 
+    'omeprazole', 'metformin', 'atorvastatin', 'losartan', 'dolo', 'combiflam', 
+    'disprin', 'cetirizine', 'pantoprazole', 'ciprofloxacin', 'diclofenac'
+  ];
+  
+  // Clean and normalize text
+  const cleanText = text.toLowerCase().trim();
+  const lines = cleanText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  
   const found = [];
   const added = new Set();
   
-  // Known medicine names to filter against
-  const validMedicines = [
-    'paracetamol', 'crocin advance', 'crocin', 'aspirin', 'ibuprofen', 
-    'amoxicillin', 'azithromycin', 'omeprazole', 'metformin', 'atorvastatin', 
-    'losartan', 'dolo', 'combiflam', 'disprin', 'cetirizine', 'allegra', 
-    'avil', 'pantoprazole', 'ranitidine', 'vitamin d3', 'vitamin d', 
-    'ors packets', 'ors', 'calcium', 'iron', 'zinc'
-  ];
-  
-  // Garbage patterns to exclude
-  const garbagePatterns = [
-    /click to upload/i,
-    /extract text/i,
-    /supports jpg/i,
-    /whatsapp image/i,
-    /detected medicines/i,
-    /add all to cart/i,
-    /^\*\d+/,
-    /^qty:/i,
-    /^\d+$/
-  ];
-  
-  const lines = text.split('\n').filter(line => line.trim());
-  
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    const lowerTrimmed = trimmed.toLowerCase();
+  // Process each line to find medicine-quantity pairs
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     
-    // Skip garbage patterns
-    if (garbagePatterns.some(pattern => pattern.test(trimmed))) {
-      return;
+    // Pattern 1: Medicine - Quantity (e.g., "asprin - 2")
+    const dashPattern = /^([a-zA-Z\s]+)\s*-\s*(\d+)$/;
+    const dashMatch = line.match(dashPattern);
+    
+    if (dashMatch) {
+      const medicineName = dashMatch[1].trim();
+      const quantity = parseInt(dashMatch[2]);
+      
+      if (medicineKeywords.some(keyword => medicineName.includes(keyword)) && !added.has(medicineName)) {
+        found.push({
+          name: medicineName.charAt(0).toUpperCase() + medicineName.slice(1),
+          quantity: Math.min(quantity, 10),
+          price: '₹50',
+          availability: 'In Stock'
+        });
+        added.add(medicineName);
+        continue;
+      }
     }
     
-    // Check if line contains a valid medicine
-    const matchedMedicine = validMedicines.find(med => {
-      if (med.includes(' ')) {
-        return med.split(' ').every(word => lowerTrimmed.includes(word));
+    // Pattern 2: Medicine name on one line, quantity on next (e.g., "dolo" followed by "-3")
+    if (medicineKeywords.some(keyword => line.includes(keyword)) && !added.has(line)) {
+      let quantity = 1;
+      
+      // Check next line for quantity
+      if (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        const qtyMatch = nextLine.match(/^-?(\d+)$/);
+        if (qtyMatch) {
+          quantity = parseInt(qtyMatch[1]);
+        }
       }
-      return lowerTrimmed.includes(med);
-    });
-    
-    if (matchedMedicine && !added.has(matchedMedicine)) {
-      let qty = 1;
-      
-      // Extract quantity from patterns
-      const qtyMatch = trimmed.match(/[-\u2013]\s*(\d+)$/) || 
-                      trimmed.match(/\b(\d+)\s*$/) ||
-                      trimmed.match(/qty[:\s]*(\d+)/i);
-      
-      if (qtyMatch && parseInt(qtyMatch[1]) <= 10) {
-        qty = parseInt(qtyMatch[1]);
-      }
-      
-      // Proper case the medicine name
-      const properName = matchedMedicine.split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
       
       found.push({
-        name: properName,
-        quantity: qty,
+        name: line.charAt(0).toUpperCase() + line.slice(1),
+        quantity: Math.min(quantity, 10),
         price: '₹50',
         availability: 'In Stock'
       });
-      added.add(matchedMedicine);
+      added.add(line);
     }
-  });
+  }
   
-  return found.length > 0 ? found : [{
-    name: 'Manual Entry Required',
-    quantity: 0,
-    price: '',
-    availability: 'Please add medicines manually'
-  }];
+  // If no medicines found, return manual entry message
+  if (found.length === 0) {
+    return [{
+      name: 'Manual Entry Required',
+      quantity: 0,
+      price: '',
+      availability: 'Please add medicines manually'
+    }];
+  }
+  
+  return found;
 }
 
 module.exports = router;

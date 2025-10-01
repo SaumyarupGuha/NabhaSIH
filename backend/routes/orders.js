@@ -14,10 +14,11 @@ router.get('/', async (req, res) => {
       });
     }
 
-    // Get all pending orders (available for all pharmacies to accept)
+    // Get pending orders that this pharmacy hasn't rejected
     const availableOrders = await Order.find({ 
       status: 'pending',
-      acceptedBy: null
+      acceptedBy: null,
+      rejectedBy: { $ne: pharmacyId }
     })
       .populate('patientId', 'firstName lastName phone')
       .sort({ createdAt: -1 });

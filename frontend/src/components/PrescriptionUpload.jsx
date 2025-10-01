@@ -1,171 +1,281 @@
 import React, { useState } from 'react';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { useCart } from '../context/CartContext';
-import { Upload, X, Loader2, CheckCircle } from 'lucide-react';
+import { Badge } from './ui/Badge';
+import { X, Upload, FileImage, Pill, Plus, Crop } from 'lucide-react';
+import { ImageCropper } from './ImageCropper';
 
-export const PrescriptionUpload = ({ isOpen, onClose }) => {
-  const [file, setFile] = useState(null);
+export function PrescriptionUpload({ isOpen, onClose, availableMedicines, onAddToCart }) {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [extractedMedicines, setExtractedMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [extractedText, setExtractedText] = useState('');
-  const [medicines, setMedicines] = useState([]);
-  const { addToCart } = useCart();
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [matchedMedicines, setMatchedMedicines] = useState([]);
+  const [showCropper, setShowCropper] = useState(false);
+
+  React.useEffect(() => {
+    const handlePaste = async (e) => {
+      if (!isOpen) return;
+      
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      for (let item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            setSelectedFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
+            setExtractedMedicines([]);
+            setMatchedMedicines([]);
+          }
+          break;
+        }
+      }
+    };
+    
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleFileSelect = (event) => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile && selectedFile.type.startsWith('image/')) {
-      setFile(selectedFile);
-      setExtractedText('');
-      setMedicines([]);
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setExtractedMedicines([]);
     }
   };
 
-  const extractTextFromImage = async () => {
-    if (!file) return;
+  const extractPrescription = async () => {
+    if (!selectedFile) return;
 
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('prescription', selectedFile);
 
-      const token = localStorage.getItem('token');
-
-      const response = await fetch('http://localhost:5000/api/prescriptions/extract-text', {
+      const response = await fetch('http://localhost:5000/api/prescription-upload/extract', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData
       });
 
       const result = await response.json();
-
+      
       if (result.success) {
-        setExtractedText(result.data.extractedText);
-        setMedicines(result.data.medicines);
+        setExtractedMedicines(result.medicines);
+        
+
+        
+        // Match extracted medicines with available medicines
+        const matches = [];
+        result.medicines.forEach(extracted => {
+          // Clean extracted name for better matching
+          const cleanExtracted = extracted.name.toLowerCase().replace(/[^a-z]/g, '');
+          
+          const match = availableMedicines.find(available => {
+            const cleanAvailable = available.name.toLowerCase().replace(/[^a-z]/g, '');
+            return cleanAvailable.includes(cleanExtracted) || 
+                   cleanExtracted.includes(cleanAvailable) ||
+                   available.name.toLowerCase().includes(extracted.name.toLowerCase()) ||
+                   extracted.name.toLowerCase().includes(available.name.toLowerCase().split(' ')[0]);
+          });
+          
+          if (match) {
+            matches.push({
+              extracted: extracted,
+              available: {
+                ...match,
+                _id: match._id || `med_${Date.now()}_${Math.random()}`,
+                medicineName: match.name,
+                unitPrice: match.unitPrice || parseFloat(match.price?.replace('₹', '')) || 50
+              },
+              confidence: 'Available'
+            });
+          } else {
+            matches.push({
+              extracted: extracted,
+              available: null,
+              confidence: 'Not Found'
+            });
+          }
+        });
+        
+        setMatchedMedicines(matches);
       } else {
-        setExtractedText(result.message || 'Failed to process image');
-        setMedicines([]);
+        alert('Failed to extract prescription: ' + result.message);
       }
     } catch (error) {
-      console.error('Error extracting text:', error);
-      alert('Error extracting text: ' + error.message);
+      console.error('Error extracting prescription:', error);
+      alert('Error extracting prescription. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const addAllToCart = () => {
-    medicines.forEach((medicine) => {
-      for (let i = 0; i < (medicine.quantity || 1); i++) {
-        addToCart(medicine);
+  const addToCart = (match) => {
+    if (match.available) {
+      const quantity = match.extracted.quantity || 1;
+      
+      // Add medicine multiple times based on extracted quantity
+      for (let i = 0; i < quantity; i++) {
+        const medicineForCart = {
+          _id: match.available._id,
+          name: match.available.name,
+          medicineName: match.available.name,
+          unitPrice: match.available.unitPrice,
+          price: `₹${match.available.unitPrice}`,
+          availability: 'In Stock',
+          quantity: 1
+        };
+        
+        onAddToCart(medicineForCart);
       }
-    });
-    onClose();
+    } else {
+      alert(`${match.extracted.name} not available in stock`);
+    }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Upload Prescription</CardTitle>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold">Upload Prescription</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileSelect}
-              className="hidden"
-              id="prescription-upload"
-            />
-            <label htmlFor="prescription-upload" className="cursor-pointer">
-              <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-sm text-gray-600">Click to upload prescription image</p>
-            </label>
-          </div>
+        </div>
 
-          {file && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium">{file.name}</span>
-                <Button onClick={extractTextFromImage} disabled={loading} size="sm">
-                  {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Extract Text
-                </Button>
+        <div className="p-6 space-y-6">
+          {/* File Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileImage className="h-5 w-5 mr-2" />
+                Select Prescription Image
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="prescription-upload"
+                />
+                <label htmlFor="prescription-upload" className="cursor-pointer">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">Click to upload prescription image</p>
+                  <p className="text-sm text-gray-400">Supports JPG, PNG, JPEG • Press Ctrl+V to paste from clipboard</p>
+                </label>
               </div>
-
-              {extractedText && (
-                <div className="space-y-3">
-                  <h3 className="font-medium">Extracted Text:</h3>
-                  <div className={`p-3 rounded-lg text-sm max-h-32 overflow-y-auto ${
-                    extractedText.includes('Unable to extract') || extractedText.includes('Please ensure') 
-                      ? 'bg-red-50 text-red-700 border border-red-200' 
-                      : 'bg-gray-50'
-                  }`}>
-                    {extractedText}
-                  </div>
-                  {extractedText.includes('Unable to extract') && (
-                    <div className="text-sm text-gray-600">
-                      <p className="font-medium mb-2">Tips for better results:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Ensure good lighting</li>
-                        <li>Keep the prescription flat and straight</li>
-                        <li>Make sure text is clearly visible</li>
-                        <li>Avoid shadows or glare</li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {medicines.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-medium">Detected Medicines:</h3>
-                  <div className="space-y-2">
-                    {medicines.map((medicine, index) => (
-                      <div key={index} className={`flex items-center justify-between p-3 border rounded-lg ${
-                        medicine.name === 'Manual Entry Required' 
-                          ? 'bg-yellow-50 border-yellow-200' 
-                          : 'bg-white'
-                      }`}>
-                        <div>
-                          <p className="font-medium text-sm">{medicine.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {medicine.availability === 'Please add medicines manually' 
-                              ? medicine.availability
-                              : `${medicine.price} • Qty: ${medicine.quantity || 1}`
-                            }
-                          </p>
-                        </div>
-                        {medicine.name !== 'Manual Entry Required' && (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {medicines.some(m => m.name !== 'Manual Entry Required') && (
-                    <Button onClick={addAllToCart} className="w-full">
-                      Add All to Cart ({medicines.filter(m => m.name !== 'Manual Entry Required').length} items)
+              
+              {previewUrl && (
+                <div className="mt-4">
+                  <img 
+                    src={previewUrl} 
+                    alt="Prescription preview" 
+                    className="max-w-full h-48 object-contain mx-auto border rounded"
+                  />
+                  <div className="flex gap-2 mt-2 justify-center">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setShowCropper(true)}
+                    >
+                      <Crop className="h-4 w-4 mr-1" />
+                      Crop Image
                     </Button>
-                  )}
-                  {medicines.some(m => m.name === 'Manual Entry Required') && (
-                    <div className="text-sm text-gray-600 p-3 bg-yellow-50 rounded-lg">
-                      <p className="font-medium mb-1">Manual Entry Needed</p>
-                      <p>The prescription text wasn't clear enough for automatic detection. Please add medicines manually from the pharmacy page.</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
-            </div>
+              
+              {selectedFile && (
+                <Button 
+                  onClick={extractPrescription}
+                  disabled={loading || !availableMedicines}
+                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
+                >
+                  {loading ? 'Extracting & Matching...' : 'Extract & Match Medicines'}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Medicine Matching Results */}
+          {matchedMedicines.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Pill className="h-5 w-5 mr-2" />
+                  Medicine Matching Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {matchedMedicines.map((match, index) => (
+                    <div key={index} className={`p-3 border rounded-lg ${
+                      match.available ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium">{match.extracted.name}</h4>
+                            <Badge className={match.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                              {match.confidence}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {match.extracted.dosage && `${match.extracted.dosage} • `}
+                            Quantity: {match.extracted.quantity}
+                          </p>
+                          {match.available && (
+                            <div className="text-sm text-green-700">
+                              ✓ Available: {match.available.name} - {match.available.price}
+                            </div>
+                          )}
+                          {!match.available && (
+                            <div className="text-sm text-red-700">
+                              ✗ Not found in available medicines
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          size="sm"
+                          onClick={() => addToCart(match)}
+                          disabled={!match.available}
+                          className={match.available ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400'}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          {match.available ? 'Add to Cart' : 'Not Available'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      
+      {showCropper && (
+        <ImageCropper
+          imageUrl={previewUrl}
+          onCrop={(croppedBlob) => {
+            const croppedFile = new File([croppedBlob], 'cropped-prescription.png', { type: 'image/png' });
+            setSelectedFile(croppedFile);
+            setPreviewUrl(URL.createObjectURL(croppedFile));
+            setShowCropper(false);
+            setExtractedMedicines([]);
+            setMatchedMedicines([]);
+          }}
+          onCancel={() => setShowCropper(false)}
+        />
+      )}
     </div>
   );
-};
+}

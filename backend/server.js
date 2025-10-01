@@ -111,6 +111,8 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/verified-pharmacies', verifiedPharmaciesRoutes);
 app.use('/api/google-maps', googleMapsRoutes);
 app.use('/api/pharmacy-updates', pharmacyUpdatesRoutes);
+app.use('/api/prescription-upload', require('./routes/prescriptionUpload'));
+app.use('/api/prescription', require('./routes/prescriptionSystem'));
 
   // Health check route
   app.get('/api/health', (req, res) => {

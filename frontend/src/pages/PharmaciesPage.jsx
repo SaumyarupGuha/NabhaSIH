@@ -9,6 +9,7 @@ import { useCart } from '../context/CartContext';
 import { CartModal } from '../components/CartModal';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { PrescriptionUpload } from '../components/PrescriptionUpload';
+import { PrescriptionOrderSystem } from '../components/PrescriptionOrderSystem';
 import { MedicineSearch } from '../components/MedicineSearch';
 import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
@@ -604,7 +605,7 @@ export default function PharmaciesPage() {
           </div>
 
           <Button 
-            className="w-full"
+            className="w-full bg-green-600 hover:bg-green-700"
             onClick={() => setIsPrescriptionUploadOpen(true)}
           >
             <Pill className="mr-2 h-4 w-4" />
@@ -851,6 +852,14 @@ export default function PharmaciesPage() {
       <PrescriptionUpload 
         isOpen={isPrescriptionUploadOpen}
         onClose={() => setIsPrescriptionUploadOpen(false)}
+        availableMedicines={availableMedicines}
+        onAddToCart={addToLocalCart}
+      />
+      
+      <PrescriptionOrderSystem 
+        isOpen={false}
+        onClose={() => {}}
+        onAddToCart={addToLocalCart}
       />
       <ToastContainer />
     </div>

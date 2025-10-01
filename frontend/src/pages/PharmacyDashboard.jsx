@@ -49,6 +49,8 @@ export default function PharmacyDashboard() {
   });
   const [pharmacyId, setPharmacyId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState(null);
+  const [viewingMedicine, setViewingMedicine] = useState(null);
   
   useEffect(() => {
     if (user) {
@@ -918,11 +920,21 @@ export default function PharmacyDashboard() {
                         </div>
 
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => setEditingMedicine(medicine)}
+                          >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => setViewingMedicine(medicine)}
+                          >
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
@@ -1102,6 +1114,102 @@ export default function PharmacyDashboard() {
           </div>
         )}
       </div>
+      
+      {/* Edit Medicine Modal */}
+      {editingMedicine && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold mb-4">Edit Medicine</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Quantity</label>
+                <input 
+                  type="number" 
+                  className="w-full border rounded px-3 py-2"
+                  defaultValue={editingMedicine.quantity}
+                  onChange={(e) => setEditingMedicine({...editingMedicine, quantity: parseInt(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Unit Price</label>
+                <input 
+                  type="number" 
+                  className="w-full border rounded px-3 py-2"
+                  defaultValue={editingMedicine.unitPrice}
+                  onChange={(e) => setEditingMedicine({...editingMedicine, unitPrice: parseFloat(e.target.value)})}
+                />
+              </div>
+            </div>
+            <div className="flex space-x-2 mt-6">
+              <Button 
+                onClick={async () => {
+                  try {
+                    await fetch(`http://localhost:5000/api/stock/${editingMedicine._id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        quantity: editingMedicine.quantity,
+                        unitPrice: editingMedicine.unitPrice
+                      })
+                    });
+                    setStock(prev => prev.map(s => s._id === editingMedicine._id ? editingMedicine : s));
+                    setEditingMedicine(null);
+                  } catch (error) {
+                    console.error('Error updating medicine:', error);
+                  }
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                Save
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setEditingMedicine(null)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* View Medicine Modal */}
+      {viewingMedicine && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold mb-4">{viewingMedicine.medicineName}</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Category:</span>
+                <span className="font-medium">{viewingMedicine.category || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Quantity:</span>
+                <span className="font-medium">{viewingMedicine.quantity}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Unit Price:</span>
+                <span className="font-medium">₹{viewingMedicine.unitPrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Manufacturer:</span>
+                <span className="font-medium">{viewingMedicine.manufacturer || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total Value:</span>
+                <span className="font-medium text-green-600">₹{(viewingMedicine.quantity * viewingMedicine.unitPrice).toFixed(0)}</span>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setViewingMedicine(null)}
+              className="w-full mt-6 bg-gray-600 hover:bg-gray-700"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
