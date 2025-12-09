@@ -2,7 +2,7 @@ const Order = require('../models/Order');
 
 const handleOrderEvents = (io) => {
   io.on('connection', (socket) => {
-    console.log('Pharmacy connected:', socket.id);
+
 
     // Join pharmacy room for targeted updates
     socket.on('joinPharmacy', (pharmacyId) => {
@@ -30,7 +30,6 @@ const handleOrderEvents = (io) => {
     });
 
     socket.on('disconnect', () => {
-      console.log('Pharmacy disconnected:', socket.id);
     });
   });
 };

@@ -47,7 +47,6 @@ router.get('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching orders:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch orders'
@@ -60,7 +59,7 @@ router.post('/', async (req, res) => {
   try {
     const { items, customerInfo, deliveryAddress, orderedBy, coordinates } = req.body;
     
-    console.log('📍 Order request coordinates:', coordinates);
+
     
     // Calculate total amount
     const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -80,7 +79,7 @@ router.post('/', async (req, res) => {
         
         if (req.body.assignedPharmacy) {
           // Calculate distance to specific verified pharmacy
-          console.log(`🗺️ Calculating delivery time from ${req.body.assignedPharmacy} to customer location`);
+
           
           const distanceResults = await distanceCalculator.calculateDistanceToSpecificPharmacy(
             coordinates,
@@ -90,7 +89,7 @@ router.post('/', async (req, res) => {
           if (distanceResults.length > 0) {
             const estimatedTime = Math.round(distanceResults[0].durationInTraffic);
             estimatedDeliveryTime = `${estimatedTime} min`;
-            console.log(`📍 Delivery calculation: ${distanceResults[0].distance.toFixed(2)}km, ${estimatedTime}min`);
+
           }
         } else {
           // Find nearest verified pharmacy
@@ -100,18 +99,17 @@ router.post('/', async (req, res) => {
             const nearest = distanceResults.sort((a, b) => a.distance - b.distance)[0];
             const estimatedTime = Math.round(nearest.durationInTraffic);
             estimatedDeliveryTime = `${estimatedTime} min`;
-            console.log(`📍 Nearest pharmacy: ${nearest.pharmacyName}, ${nearest.distance.toFixed(2)}km, ${estimatedTime}min`);
+
           }
         }
       } catch (error) {
-        console.error('⚠️ Distance calculation failed:', error.message);
-        console.log('Using default delivery time');
+
       }
     } else {
-      console.log('⚠️ No coordinates provided, using default time');
+
     }
     
-    console.log('⏰ Final estimatedDeliveryTime:', estimatedDeliveryTime);
+
     
     const order = new Order({
       patientId: orderedBy,
@@ -140,12 +138,10 @@ router.post('/', async (req, res) => {
       message: 'Order created successfully'
     };
     
-    console.log('📤 Sending response with estimatedDeliveryTime:', estimatedDeliveryTime);
-    console.log('📤 Full response data:', JSON.stringify(responseData, null, 2));
+
     
     res.status(201).json(responseData);
   } catch (error) {
-    console.error('Error creating order:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create order'
@@ -159,7 +155,7 @@ router.post('/:orderId/accept', async (req, res) => {
     const { orderId } = req.params;
     const { pharmacyId } = req.body;
 
-    console.log(`Pharmacy ${pharmacyId} attempting to accept order ${orderId}`);
+
 
     // Get pharmacy information
     const User = require('../models/User');
@@ -196,14 +192,14 @@ router.post('/:orderId/accept', async (req, res) => {
     ).populate('patientId', 'firstName lastName phone');
 
     if (!order) {
-      console.log(`Order ${orderId} already taken or not found`);
+
       return res.status(409).json({
         success: false,
         message: 'Order already taken by another pharmacy'
       });
     }
 
-    console.log(`Order ${orderId} successfully accepted by pharmacy ${pharmacyId}`);
+
 
     // Update stock quantities when order is accepted
     try {
@@ -219,10 +215,10 @@ router.post('/:orderId/accept', async (req, res) => {
           },
           { new: true }
         );
-        console.log(`📦 Reduced stock for ${medicine.name} by ${medicine.quantity}`);
+
       }
     } catch (stockError) {
-      console.error('Error updating stock:', stockError);
+
       // Continue with order acceptance even if stock update fails
     }
 
@@ -271,7 +267,6 @@ router.post('/:orderId/accept', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error accepting order:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to accept order'
@@ -285,20 +280,19 @@ router.post('/:orderId/reject', async (req, res) => {
     const { orderId } = req.params;
     const { pharmacyId } = req.body;
 
-    console.log('Reject request - OrderId:', orderId, 'PharmacyId:', pharmacyId);
+
 
     // First check if order exists
     const existingOrder = await Order.findById(orderId);
     if (!existingOrder) {
-      console.log('Order not found:', orderId);
+
       return res.status(404).json({ 
         success: false, 
         message: 'Order not found' 
       });
     }
 
-    console.log('Order status:', existingOrder.status);
-    console.log('Already rejected by:', existingOrder.rejectedBy);
+
 
     // Add pharmacy to rejectedBy array and update status if all pharmacies reject
     const order = await Order.findOneAndUpdate(
@@ -315,14 +309,14 @@ router.post('/:orderId/reject', async (req, res) => {
     );
 
     if (!order) {
-      console.log('Order update failed - likely already rejected by this pharmacy or not pending');
+
       return res.status(400).json({ 
         success: false, 
         message: 'Order not found, no longer pending, or already rejected by this pharmacy' 
       });
     }
 
-    console.log('Order rejected successfully by pharmacy:', pharmacyId);
+
     
     res.json({ 
       success: true, 
@@ -387,7 +381,6 @@ router.put('/updateOrderStatus/:id', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating order status:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update order status'
@@ -428,7 +421,7 @@ router.patch('/:orderId/status', async (req, res) => {
     order.updatedAt = new Date();
     await order.save();
 
-    console.log(`Order ${orderId} status updated to ${status} by pharmacy ${pharmacyId}`);
+
 
     // Emit real-time updates
     if (req.io) {
@@ -468,7 +461,6 @@ router.patch('/:orderId/status', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating order status:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update order status'
@@ -511,7 +503,6 @@ router.get('/patient', async (req, res) => {
 
     res.json({ success: true, data: orders });
   } catch (error) {
-    console.error('Error fetching patient orders:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch orders' });
   }
 });
@@ -521,7 +512,7 @@ router.get('/test-maps', async (req, res) => {
   try {
     const distanceCalculator = require('../services/distanceCalculator');
     
-    console.log('🧪 Testing Google Maps API...');
+
     
     // Test distance from Nabha center to a nearby location
     const nabhaCenter = { lat: 30.3752, lng: 76.1496 };
@@ -539,7 +530,7 @@ router.get('/test-maps', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Maps API test error:', error);
+
     res.status(500).json({
       success: false,
       message: 'Maps API test failed',

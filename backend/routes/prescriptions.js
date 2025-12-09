@@ -15,10 +15,7 @@ cloudinary.config({
   secure: true
 });
 
-console.log('Cloudinary config check:', {
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set'
-});
+
 
 // Configure multer
 const upload = multer({ 
@@ -54,14 +51,7 @@ router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No image file provided' });
 
-    console.log('Uploading to Cloudinary...');
-    console.log('Environment check:', {
-      CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-      CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Not set'
-    });
     const uploadResult = await uploadToCloudinary(req.file.buffer);
-    console.log('Cloudinary URL:', uploadResult.secure_url);
 
     // OCR API request
     const response = await fetch(`https://api.apilayer.com/image_to_text/url?url=${encodeURIComponent(uploadResult.secure_url)}`, {
@@ -70,7 +60,7 @@ router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
     });
     
     const rawText = await response.text();
-    console.log('OCR Response:', rawText);
+
 
     // Parse JSON response if it's JSON format
     let extractedText = rawText;
@@ -101,7 +91,7 @@ router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
     res.json({ success: true, data: { extractedText: extractedText, medicines, prescriptionId: prescription._id, imageUrl: uploadResult.secure_url } });
 
   } catch (error) {
-    console.error('Error:', error);
+
     res.status(500).json({ success: false, message: error.message });
   }
 });

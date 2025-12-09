@@ -56,7 +56,7 @@ export default function PharmacyDashboard() {
   useEffect(() => {
     if (user) {
       const id = user.id || user._id;
-      console.log('Setting pharmacy ID:', id);
+
       setPharmacyId(id);
     }
   }, [user]);
@@ -75,7 +75,7 @@ export default function PharmacyDashboard() {
             // Amazon-style: separate available and my orders
             const allOrders = [...ordersData.data.availableOrders, ...ordersData.data.myOrders];
             setOrders(allOrders);
-            console.log(`Loaded ${ordersData.data.availableOrders.length} available orders and ${ordersData.data.myOrders.length} my orders`);
+
           } else {
             setOrders(ordersData.data || []);
           }
@@ -122,7 +122,7 @@ export default function PharmacyDashboard() {
           setStock(stockData.data || []);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+
       } finally {
         setLoading(false);
       }
@@ -140,13 +140,13 @@ export default function PharmacyDashboard() {
 
     // Listen for new orders
     newSocket.on('newOrder', (order) => {
-      console.log('New order received:', order);
+
       setOrders(prev => [order, ...prev]);
     });
 
     // Listen for order acceptance (Amazon-style)
     newSocket.on('orderAccepted', (data) => {
-      console.log('Order accepted by:', data.acceptedBy, 'My ID:', pharmacyId);
+
       if (data.acceptedBy === pharmacyId) {
         // We accepted this order - move it to our orders
         setOrders(prev => prev.map(order => 
@@ -160,7 +160,7 @@ export default function PharmacyDashboard() {
         ));
       } else {
         // Another pharmacy accepted - remove from available orders
-        console.log('Order taken by another pharmacy, removing from available list');
+
         setOrders(prev => prev.filter(order => order._id !== data.orderId));
       }
     });
@@ -180,10 +180,10 @@ export default function PharmacyDashboard() {
           if (stockResponse.ok) {
             const stockData = await stockResponse.json();
             setStock(stockData.data || []);
-            console.log('Stock updated after order acceptance');
+
           }
         } catch (error) {
-          console.error('Error refreshing stock:', error);
+
         }
       }
     });
@@ -220,7 +220,7 @@ export default function PharmacyDashboard() {
       
       if (response.ok) {
         // Order successfully claimed
-        console.log('Order accepted:', result.data);
+
       } else {
         // Order already taken
         alert(result.message || 'Order already taken by another pharmacy');
@@ -228,7 +228,7 @@ export default function PharmacyDashboard() {
         setOrders(prev => prev.filter(order => order._id !== orderId));
       }
     } catch (error) {
-      console.error('Error accepting order:', error);
+
       alert('Failed to accept order. Please try again.');
     }
   };
@@ -248,7 +248,7 @@ export default function PharmacyDashboard() {
         alert('Failed to reject order. Please try again.');
       }
     } catch (error) {
-      console.error('Error rejecting order:', error);
+
       alert('Failed to reject order. Please try again.');
     }
   };
@@ -307,7 +307,7 @@ export default function PharmacyDashboard() {
         }
       }
     } catch (error) {
-      console.error('Error updating order:', error);
+
     }
   };
 
@@ -388,7 +388,7 @@ export default function PharmacyDashboard() {
                       setStock(stockData.data || []);
                     }
                   } catch (error) {
-                    console.error('Error refreshing:', error);
+
                   } finally {
                     setTimeout(() => setRefreshing(false), 500);
                   }
@@ -1302,7 +1302,7 @@ export default function PharmacyDashboard() {
                     setStock(prev => prev.map(s => s._id === editingMedicine._id ? editingMedicine : s));
                     setEditingMedicine(null);
                   } catch (error) {
-                    console.error('Error updating medicine:', error);
+
                   }
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"

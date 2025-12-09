@@ -12,7 +12,7 @@ router.get('/profile', auth, async (req, res) => {
       .populate('selectedPharmacy', 'name address phone');
     res.json(user);
   } catch (error) {
-    console.error('Get profile error:', error);
+
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -37,7 +37,7 @@ router.patch('/profile', auth, async (req, res) => {
 
     res.json({ message: 'Profile updated successfully', user });
   } catch (error) {
-    console.error('Update profile error:', error);
+
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
       .populate('selectedPharmacy', 'name address phone');
     res.json({ success: true, data: users });
   } catch (error) {
-    console.error('Get users error:', error);
+
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -87,7 +87,7 @@ router.patch('/:id/verify', [auth, authorize('admin')], async (req, res) => {
 
     res.json({ message: 'User verified successfully', user });
   } catch (error) {
-    console.error('Verify user error:', error);
+
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -55,46 +55,40 @@ app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log('MongoDB connection error:', err));
+.then(() => {})
+.catch(err => {});
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('🔌 Client connected:', socket.id);
   
   // Join pharmacy room for order notifications
   socket.on('joinPharmacyRoom', (pharmacyId) => {
     socket.join(`pharmacy_${pharmacyId}`);
-    console.log(`🏪 Pharmacy ${pharmacyId} joined room: pharmacy_${pharmacyId}`);
   });
   
   // Join doctor room for real-time alerts
   socket.on('joinDoctorRoom', (doctorId) => {
     socket.join(`doctor_${doctorId}`);
-    console.log(`🏠 Doctor ${doctorId} joined room: doctor_${doctorId}`);
   });
   
   // Join patient room for order updates
   socket.on('joinPatientRoom', (patientId) => {
     socket.join(`patient_${patientId}`);
-    console.log(`👤 Patient ${patientId} joined room: patient_${patientId}`);
   });
   
   // Join general pharmacy dashboard room
   socket.on('joinPharmacyDashboard', () => {
     socket.join('pharmacy_dashboard');
-    console.log('🏪 Client joined pharmacy dashboard room');
   });
   
   socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
   });
 });
 
 // Initialize order events
 handleOrderEvents(io);
 
-  console.log('📡 Socket.io server initialized');
+
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -140,6 +134,4 @@ app.use('/api/alternatives', alternativesRoutes);
   });
 
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Socket.io enabled for real-time notifications');
 });

@@ -29,19 +29,19 @@ class DistanceCalculator {
   async calculateRealTimeDistance(origins, destinations) {
     // Try Google Maps first
     if (this.googleMapsApiKey) {
-      console.log('🗺️  Trying Google Maps API for distance calculation');
+
       const googleResult = await this.tryGoogleMaps(origins, destinations);
       if (googleResult) return googleResult;
     }
     
     // Try OpenRouteService as fallback
     if (this.openRouteServiceKey) {
-      console.log('🌍 Trying OpenRouteService API for distance calculation');
+
       const orsResult = await this.tryOpenRouteService(origins, destinations);
       if (orsResult) return orsResult;
     }
     
-    console.log('⚠️  No working API keys found, using mathematical calculation');
+
     return this.calculateFallbackDistances(origins, destinations);
   }
   
@@ -63,15 +63,14 @@ class DistanceCalculator {
       });
 
       if (response.data.status === 'OK') {
-        console.log('✅ Google Maps API response successful');
-        console.log('📊 Google Maps data:', response.data);
+
         return this.parseDistanceMatrixResponse(response.data);
       } else {
-        console.warn('❌ Google Maps API error:', response.data.status, response.data.error_message);
+
         return null;
       }
     } catch (error) {
-      console.error('Google Maps error:', error.message);
+
       return null;
     }
   }
@@ -91,7 +90,7 @@ class DistanceCalculator {
       
       if (response.data.features && response.data.features.length > 0) {
         const route = response.data.features[0].properties;
-        console.log('✅ OpenRouteService API response successful');
+
         
         return [{
           originIndex: 0,
@@ -104,7 +103,7 @@ class DistanceCalculator {
       
       return null;
     } catch (error) {
-      console.error('OpenRouteService error:', error.message);
+
       return null;
     }
   }
@@ -172,7 +171,7 @@ class DistanceCalculator {
         pharmacyPhone: verifiedPharmacies[index].phone
       }));
     } catch (error) {
-      console.error('Error calculating distances to verified pharmacies:', error);
+
       throw error;
     }
   }
@@ -198,7 +197,7 @@ class DistanceCalculator {
         pharmacyPhone: pharmacy.phone
       }));
     } catch (error) {
-      console.error('Error calculating distance to specific pharmacy:', error);
+
       throw error;
     }
   }

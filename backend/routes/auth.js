@@ -15,7 +15,7 @@ const generateToken = (userId) => {
 // Register
 router.post('/register', async (req, res) => {
   try {
-    console.log('Registration data:', req.body);
+
     const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, consultationFee, availableDays, selectedPharmacy } = req.body;
 
     // Check if user already exists
@@ -92,9 +92,7 @@ router.post('/register', async (req, res) => {
     }
 
     const user = new User(userData);
-    console.log('About to save user:', user.phone, 'Password length:', user.password.length);
     await user.save();
-    console.log('User saved successfully:', user.phone);
 
     const token = generateToken(user._id);
 
@@ -116,7 +114,7 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
+
     res.status(500).json({ message: 'Server error during registration' });
   }
 });
@@ -128,10 +126,10 @@ router.post('/login', [
   body('role').isIn(['patient', 'doctor', 'pharmacist', 'admin']).withMessage('Role is required')
 ], async (req, res) => {
   try {
-    console.log('Login attempt:', req.body);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
+
       return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
     }
 
@@ -151,18 +149,15 @@ router.post('/login', [
     });
 
     if (!user) {
-      console.log('User not found for:', { contact, role });
+
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     
-    console.log('User found:', user.email || user.phone);
+
 
     // Check password
-    console.log('Comparing password for user:', user.phone);
     const isMatch = await user.comparePassword(password);
-    console.log('Password match result:', isMatch);
     if (!isMatch) {
-      console.log('Password mismatch for user:', user.phone);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -186,7 +181,7 @@ router.post('/login', [
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+
     res.status(500).json({ message: 'Server error during login' });
   }
 });
@@ -226,7 +221,7 @@ router.get('/registered-pharmacies', async (req, res) => {
       data: pharmacists
     });
   } catch (error) {
-    console.error('Error fetching registered pharmacies:', error);
+
     res.status(500).json({ message: 'Error fetching registered pharmacies' });
   }
 });

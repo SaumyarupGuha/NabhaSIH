@@ -24,16 +24,16 @@ export default function PatientDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Fetching patient dashboard data...');
+
         
         // Fetch appointments
         let appointmentsData = [];
         try {
           const appointmentsRes = await appointmentAPI.getAppointments();
           appointmentsData = Array.isArray(appointmentsRes.data) ? appointmentsRes.data : appointmentsRes.data?.data || [];
-          console.log('Appointments fetched:', appointmentsData.length);
+
         } catch (error) {
-          console.error('Error fetching appointments:', error);
+
         }
         
         // Fetch prescriptions
@@ -41,9 +41,9 @@ export default function PatientDashboard() {
         try {
           const prescriptionsRes = await prescriptionAPI.getPrescriptions();
           prescriptionsData = Array.isArray(prescriptionsRes.data) ? prescriptionsRes.data : prescriptionsRes.data?.data || [];
-          console.log('Prescriptions fetched:', prescriptionsData.length);
+
         } catch (error) {
-          console.error('Error fetching prescriptions:', error);
+
         }
         
         // Fetch orders
@@ -55,10 +55,10 @@ export default function PatientDashboard() {
           if (ordersRes.ok) {
             const ordersJson = await ordersRes.json();
             ordersData = ordersJson.data || [];
-            console.log('Orders fetched:', ordersData.length);
+
           }
         } catch (error) {
-          console.error('Error fetching orders:', error);
+
         }
         
         setAppointments(appointmentsData);
@@ -66,7 +66,7 @@ export default function PatientDashboard() {
         setOrders(ordersData);
         
       } catch (error) {
-        console.error('General error in fetchData:', error);
+
         setAppointments([]);
         setPrescriptions([]);
         setOrders([]);
@@ -83,7 +83,7 @@ export default function PatientDashboard() {
 
     // Listen for order acceptance
     newSocket.on('orderAccepted', (data) => {
-      console.log('Order accepted event received:', data);
+
       setOrders(prev => prev.map(order => 
         order._id === data.orderId ? { 
           ...order, 
@@ -96,7 +96,7 @@ export default function PatientDashboard() {
 
     // Listen for order status updates
     newSocket.on('orderUpdated', (data) => {
-      console.log('Order updated event received:', data);
+
       setOrders(prev => prev.map(order => 
         order._id === data.orderId ? { 
           ...order, 
@@ -108,7 +108,7 @@ export default function PatientDashboard() {
 
     // Listen for order status updates (alternative event name)
     newSocket.on('orderStatusUpdate', (data) => {
-      console.log('Order status update event received:', data);
+
       if (data.customerId) {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         if (data.customerId === user._id || data.customerId === user.id) {
@@ -476,7 +476,7 @@ export default function PatientDashboard() {
                         setOrders(ordersJson.data || []);
                       }
                     } catch (error) {
-                      console.error('Error refreshing orders:', error);
+
                     } finally {
                       setTimeout(() => setRefreshingOrders(false), 500);
                     }

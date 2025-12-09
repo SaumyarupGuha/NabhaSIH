@@ -324,7 +324,7 @@ router.get('/verified', async (req, res) => {
       data: verifiedPharmacies
     });
   } catch (error) {
-    console.error('Error fetching verified pharmacies:', error);
+
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pharmacies'
@@ -335,7 +335,7 @@ router.get('/verified', async (req, res) => {
 // Pharmacy signup
 router.post('/signup', async (req, res) => {
   try {
-    console.log('Pharmacy signup request body:', req.body);
+
     
     const { 
       firstName,
@@ -353,7 +353,7 @@ router.post('/signup', async (req, res) => {
       role = 'pharmacist'
     } = req.body;
     
-    console.log('Extracted fields:', { firstName, lastName, email, phone, age, gender, village, pharmacyId, selectedPharmacy });
+
 
     // Check if user already exists (only if email is provided)
     if (email && email.trim()) {
@@ -386,14 +386,7 @@ router.post('/signup', async (req, res) => {
     });
 
     await user.save();
-    console.log('Created pharmacy user:', {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      pharmacyId: user.pharmacyId
-    });
+
 
     // Generate JWT token
     const token = jwt.sign(
@@ -422,7 +415,7 @@ router.post('/signup', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Pharmacy signup error:', error);
+
     res.status(500).json({
       success: false,
       message: 'Server error during signup'

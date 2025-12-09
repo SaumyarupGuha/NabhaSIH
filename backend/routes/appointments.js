@@ -24,7 +24,6 @@ router.get('/', auth, async (req, res) => {
 
     res.json(appointments);
   } catch (error) {
-    console.error('Get appointments error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -41,12 +40,12 @@ router.post('/', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
+
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { doctorId, date, time, type, symptoms } = req.body;
-    console.log('Booking request data:', { doctorId, date, time, type, symptoms });
+
 
     // Verify doctor exists and is available on the selected day
     const doctor = await User.findOne({ _id: doctorId, role: 'doctor' });
@@ -87,7 +86,6 @@ router.post('/', [
       appointment: populatedAppointment
     });
   } catch (error) {
-    console.error('Book appointment error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -111,7 +109,6 @@ router.patch('/:id/start', auth, authorize('doctor'), async (req, res) => {
 
     res.json({ message: 'Consultation started', appointment });
   } catch (error) {
-    console.error('Start consultation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -164,7 +161,6 @@ router.patch('/:id/complete', [
       prescription 
     });
   } catch (error) {
-    console.error('Complete consultation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -188,7 +184,6 @@ router.patch('/:id/start', auth, authorize('doctor'), async (req, res) => {
 
     res.json({ message: 'Consultation started', appointment });
   } catch (error) {
-    console.error('Start consultation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -241,7 +236,6 @@ router.patch('/:id/complete', [
       prescription 
     });
   } catch (error) {
-    console.error('Complete consultation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -272,7 +266,6 @@ router.patch('/:id/status', [
 
     res.json({ message: 'Appointment status updated', appointment });
   } catch (error) {
-    console.error('Update appointment error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -298,7 +291,6 @@ router.get('/doctors', async (req, res) => {
 
     res.json(doctors);
   } catch (error) {
-    console.error('Get doctors error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -329,7 +321,6 @@ router.get('/queue', auth, authorize('doctor'), async (req, res) => {
 
     res.json(queue);
   } catch (error) {
-    console.error('Get queue error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
