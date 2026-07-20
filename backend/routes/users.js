@@ -41,18 +41,9 @@ router.patch('/profile', auth, async (req, res) => {
 });
 
 // Get all users (admin only, except for role=patient/doctor which allows authenticated access)
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const { role, verified } = req.query;
-    
-    // Allow public access only for getting patients (for simulator)
-    // Allow authenticated access for getting doctors (for consultations)
-    if (role !== 'patient' && role !== 'doctor') {
-      // Require admin auth for other roles
-      if (!req.headers.authorization) {
-        return res.status(401).json({ message: 'Access denied' });
-      }
-    }
     
     let query = {};
     if (role) query.role = role;

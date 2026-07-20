@@ -21,9 +21,13 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const ALLOWED_ORIGINS = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',')
+  : ['http://localhost:3000'];
+
 const io = socketIo(server, {
   cors: {
-    origin: "*",
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST"],
   },
 });
@@ -35,7 +39,7 @@ app.set("io", io);
 // Middleware
 app.use(
   cors({
-    origin: "*",
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
@@ -43,12 +47,12 @@ app.use(
       "X-Requested-With",
       "Accept",
     ],
-    credentials: false,
+    credentials: true,
   })
 );
 
 // Handle preflight requests
-app.options("*", cors());
+app.options("*", cors({ origin: ALLOWED_ORIGINS }));
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));

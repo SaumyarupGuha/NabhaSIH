@@ -126,7 +126,7 @@ async function createAlert(alertData) {
 }
 
 // POST /api/health-data - Receive health data from simulator
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
     const { patientId, heartRate, temperature, oxygenSaturation, bloodPressure, timestamp } = req.body;
     

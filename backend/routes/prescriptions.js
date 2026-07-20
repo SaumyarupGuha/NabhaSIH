@@ -153,7 +153,7 @@ router.post('/extract-text', auth, upload.single('image'), async (req, res) => {
 
   } catch (error) {
     console.error('❌ General error in extract-text:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -190,8 +190,7 @@ router.post('/test-upload', auth, upload.single('image'), async (req, res) => {
     console.error('❌ Upload failed:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Upload failed: ' + error.message,
-      error: error.toString()
+      message: 'Upload failed'
     });
   }
 });
