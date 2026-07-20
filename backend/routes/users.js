@@ -7,7 +7,9 @@ const router = express.Router();
 // Get user profile
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id)
+      .select('-password')
+      .populate('selectedPharmacy', 'name address phone');
     res.json(user);
   } catch (error) {
     console.error('Get profile error:', error);
@@ -49,7 +51,9 @@ router.get('/', [auth, authorize('admin')], async (req, res) => {
     if (role) query.role = role;
     if (verified !== undefined) query.isVerified = verified === 'true';
 
-    const users = await User.find(query).select('-password');
+    const users = await User.find(query)
+      .select('-password')
+      .populate('selectedPharmacy', 'name address phone');
     res.json(users);
   } catch (error) {
     console.error('Get users error:', error);

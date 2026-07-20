@@ -69,24 +69,29 @@ const userSchema = new mongoose.Schema({
     required: function() { return this.role === 'doctor'; }
   },
   // Pharmacist specific fields
-  pharmacyName: {
+  selectedPharmacy: {
     type: String,
     required: function() { return this.role === 'pharmacist'; }
   },
+  // Keep old fields for backward compatibility
+  pharmacyName: {
+    type: String,
+    required: false
+  },
   pharmacyAddress: {
     type: String,
-    required: function() { return this.role === 'pharmacist'; }
+    required: false
   },
   isVerified: {
     type: Boolean,
     default: function() { return this.role === 'patient'; }
   },
   // Patient-Doctor relationship
-  assignedDoctor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: function() { return this.role === 'patient'; }
-  },
+  // assignedDoctor: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: 'User',
+  //   required: function() { return this.role === 'patient'; }
+  // },
   avatar: String
 }, {
   timestamps: true

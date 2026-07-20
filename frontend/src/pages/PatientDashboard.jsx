@@ -165,9 +165,12 @@ export default function PatientDashboard() {
               <CardTitle className="text-lg">{t('dashboard.orderMedicine')}</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
-              <Button variant="outline" className="w-full" onClick={handleNavigateToPharmacy}>
+              <Button variant="outline" className="w-full mb-2" onClick={handleNavigateToPharmacy}>
                 {t('dashboard.orderFromPharmacy')}
               </Button>
+              <p className="text-xs text-muted-foreground">
+                Browse medicines, check stock, and place orders
+              </p>
             </CardContent>
           </Card>
         </div>
