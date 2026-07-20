@@ -28,12 +28,14 @@ async function checkAnomalies(healthData, io) {
   // Create alerts for all doctors when anomalies are detected
   const anomalies = [];
   
+  const patientName = `${patient.firstName} ${patient.lastName}`;
+  
   // Check temperature
   if (healthData.temperature > THRESHOLDS.HIGH_TEMPERATURE) {
     anomalies.push({
       type: 'HIGH_TEMPERATURE',
       severity: healthData.temperature > 102 ? 'CRITICAL' : 'HIGH',
-      message: `High temperature detected: ${healthData.temperature}°F`,
+      message: `🌡️ ${patientName}: Temperature ${healthData.temperature}°F | HR: ${healthData.heartRate} | O2: ${healthData.oxygenSaturation}% | BP: ${healthData.bloodPressure?.systolic || 'N/A'}/${healthData.bloodPressure?.diastolic || 'N/A'}`,
       value: healthData.temperature,
       threshold: THRESHOLDS.HIGH_TEMPERATURE
     });
@@ -44,7 +46,7 @@ async function checkAnomalies(healthData, io) {
     anomalies.push({
       type: 'LOW_OXYGEN',
       severity: healthData.oxygenSaturation < 85 ? 'CRITICAL' : 'HIGH',
-      message: `Low oxygen saturation: ${healthData.oxygenSaturation}%`,
+      message: `🫁 ${patientName}: Oxygen ${healthData.oxygenSaturation}% | HR: ${healthData.heartRate} | Temp: ${healthData.temperature}°F | BP: ${healthData.bloodPressure?.systolic || 'N/A'}/${healthData.bloodPressure?.diastolic || 'N/A'}`,
       value: healthData.oxygenSaturation,
       threshold: THRESHOLDS.LOW_OXYGEN
     });
@@ -55,7 +57,7 @@ async function checkAnomalies(healthData, io) {
     anomalies.push({
       type: 'HIGH_HEART_RATE',
       severity: healthData.heartRate > 140 ? 'CRITICAL' : 'HIGH',
-      message: `High heart rate detected: ${healthData.heartRate} bpm`,
+      message: `❤️ ${patientName}: Heart Rate ${healthData.heartRate} bpm | Temp: ${healthData.temperature}°F | O2: ${healthData.oxygenSaturation}% | BP: ${healthData.bloodPressure?.systolic || 'N/A'}/${healthData.bloodPressure?.diastolic || 'N/A'}`,
       value: healthData.heartRate,
       threshold: THRESHOLDS.HIGH_HEART_RATE
     });
@@ -68,7 +70,7 @@ async function checkAnomalies(healthData, io) {
     anomalies.push({
       type: 'HIGH_BLOOD_PRESSURE',
       severity: 'HIGH',
-      message: `High blood pressure: ${healthData.bloodPressure.systolic}/${healthData.bloodPressure.diastolic} mmHg`,
+      message: `🩸 ${patientName}: BP ${healthData.bloodPressure.systolic}/${healthData.bloodPressure.diastolic} mmHg | HR: ${healthData.heartRate} | Temp: ${healthData.temperature}°F | O2: ${healthData.oxygenSaturation}%`,
       value: healthData.bloodPressure.systolic,
       threshold: THRESHOLDS.HIGH_BLOOD_PRESSURE_SYSTOLIC
     });
@@ -76,33 +78,39 @@ async function checkAnomalies(healthData, io) {
   
   console.log(`🩺 Found ${allDoctors.length} doctors, checking ${anomalies.length} anomalies`);
   
-  // Create alerts for each doctor for each anomaly
+  // Create one alert per anomaly and broadcast to all doctors
   for (const anomaly of anomalies) {
     console.log(`⚠️ Processing anomaly: ${anomaly.type} - ${anomaly.message}`);
-    for (const doctor of allDoctors) {
-      const alert = await createAlert({
-        patient: healthData.patient,
-        doctor: doctor._id,
-        healthData: healthData._id,
-        ...anomaly
-      });
-      alerts.push(alert);
-      console.log(`✅ Created alert for Dr. ${doctor.firstName} ${doctor.lastName}`);
-    }
+    const alert = await createAlert({
+      patient: healthData.patient,
+      doctor: allDoctors[0]._id, // Use first doctor as primary
+      healthData: healthData._id,
+      ...anomaly
+    });
+    alerts.push(alert);
+    console.log(`✅ Created alert: ${anomaly.type}`);
   }
   
   // Send real-time notifications to all doctors
   if (alerts.length > 0 && io) {
-    allDoctors.forEach(doctor => {
-      const doctorAlerts = alerts.filter(alert => alert.doctor._id.toString() === doctor._id.toString());
-      doctorAlerts.forEach(alert => {
-        io.to(`doctor_${doctor._id}`).emit('newAlert', {
+    console.log(`📡 Broadcasting ${alerts.length} alerts to ${allDoctors.length} doctors`);
+    
+    alerts.forEach(alert => {
+      allDoctors.forEach(doctor => {
+        const roomName = `doctor_${doctor._id}`;
+        io.to(roomName).emit('newAlert', {
           alert,
           patient: patient,
           healthData
         });
       });
+      
+      console.log(`🚨 Alert broadcasted: ${alert.type} - ${alert.message}`);
     });
+    
+    console.log(`✅ All alerts sent to doctors`);
+  } else {
+    console.log(`⚠️ No alerts to send. Alerts: ${alerts.length}, IO: ${!!io}`);
   }
   
   return alerts;
@@ -122,6 +130,10 @@ router.post('/', async (req, res) => {
   try {
     const { patientId, heartRate, temperature, oxygenSaturation, bloodPressure, timestamp } = req.body;
     
+    console.log(`🩺 Received health data for patient ${patientId}:`, {
+      heartRate, temperature, oxygenSaturation, bloodPressure
+    });
+    
     const healthData = new HealthData({
       patient: patientId,
       heartRate,
@@ -132,19 +144,29 @@ router.post('/', async (req, res) => {
     });
     
     await healthData.save();
+    console.log(`💾 Health data saved with ID: ${healthData._id}`);
     
     // Check for anomalies
     const io = req.app.get('io');
+    console.log(`🔌 Socket.io instance available:`, !!io);
+    
     const alerts = await checkAnomalies(healthData, io);
+    
+    console.log(`✅ Processing complete. Alerts created: ${alerts.length}`);
     
     res.json({
       success: true,
       data: healthData,
-      alertsCreated: alerts.length
+      alertsCreated: alerts.length,
+      debug: {
+        patientId,
+        healthDataId: healthData._id,
+        socketAvailable: !!io
+      }
     });
     
   } catch (error) {
-    console.error('Health data error:', error);
+    console.error('❌ Health data error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

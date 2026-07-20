@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { MapPin, Phone, Stethoscope, Ambulance, Building2, Star } from 'lucide-react';
 
 export default function HospitalsPage() {
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 600);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   const hospitals = [
     {
       id: 1,
@@ -43,6 +54,44 @@ export default function HospitalsPage() {
     { name: "Police", number: "100", description: "Police emergency services" },
     { name: "Women Helpline", number: "1091", description: "Women safety helpline" },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Card className="mb-8">
+            <CardHeader>
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="text-center p-4 border rounded-lg">
+                    <Skeleton className="h-5 w-24 mx-auto mb-1" />
+                    <Skeleton className="h-8 w-16 mx-auto mb-2" />
+                    <Skeleton className="h-3 w-32 mx-auto" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-6 w-32" />
+            </div>
+            <ListSkeleton count={2} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

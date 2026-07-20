@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
@@ -6,10 +7,12 @@ import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Textarea } from '../components/ui/Textarea';
 import { Badge } from '../components/ui/Badge';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { appointmentAPI } from '../lib/api';
 import { Calendar, User, Video, MapPin, Star, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ConsultationsPage() {
+  const { t } = useTranslation('consultations');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
@@ -20,7 +23,6 @@ export default function ConsultationsPage() {
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedAvailability, setSelectedAvailability] = useState('');
   const [bookingData, setBookingData] = useState({
-    date: '',
     time: '',
     type: 'video',
     symptoms: '',
@@ -188,15 +190,23 @@ export default function ConsultationsPage() {
     e.preventDefault();
     if (!selectedDoctor) return;
 
+    const appointmentData = {
+      doctorId: selectedDoctor._id,
+      date: selectedDate.toISOString().split('T')[0],
+      time: bookingData.time,
+      type: bookingData.type,
+      symptoms: bookingData.symptoms
+    };
+
+    console.log('Booking data:', appointmentData);
+
     try {
-      await appointmentAPI.bookAppointment({
-        doctorId: selectedDoctor._id,
-        ...bookingData
-      });
+      await appointmentAPI.bookAppointment(appointmentData);
       alert('Appointment booked successfully!');
-      setBookingData({ date: '', time: '', type: 'video', symptoms: '', phone: '' });
+      setBookingData({ time: '', type: 'video', symptoms: '', phone: '' });
       setSelectedDoctor(null);
     } catch (error) {
+      console.error('Booking error:', error.response?.data);
       alert('Error booking appointment: ' + (error.response?.data?.message || 'Please try again'));
     }
   };
@@ -279,8 +289,49 @@ export default function ConsultationsPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading doctors...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Card className="mb-8">
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <Skeleton variant="shimmer" className="h-8 w-48 mb-6" />
+              <ListSkeleton count={3} variant="shimmer" />
+            </div>
+            <div>
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -292,26 +343,26 @@ export default function ConsultationsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Consultations</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
           <p className="text-muted-foreground">
-            Book online consultations with qualified doctors from Nabha Civil Hospital
+            {t('subtitle')}
           </p>
         </div>
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Find a Doctor</CardTitle>
-            <CardDescription>Search by specialty, name, or availability</CardDescription>
+            <CardTitle>{t('findDoctor')}</CardTitle>
+            <CardDescription>{t('searchDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div>
-                <Label htmlFor="search">Search Doctor</Label>
+                <Label htmlFor="search">{t('searchDoctor')}</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
                     id="search" 
-                    placeholder="Doctor name or specialty" 
+                    placeholder={t('searchPlaceholder')} 
                     className="pl-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -319,38 +370,38 @@ export default function ConsultationsPage() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="specialty">Specialty</Label>
+                <Label htmlFor="specialty">{t('specialty')}</Label>
                 <select 
                   id="specialty"
                   value={selectedSpecialty}
                   onChange={(e) => setSelectedSpecialty(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="">Select specialty</option>
+                  <option value="">{t('selectSpecialty')}</option>
                   {specialties.map(specialty => (
                     <option key={specialty} value={specialty}>{specialty}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <Label htmlFor="availability">Availability</Label>
+                <Label htmlFor="availability">{t('availability')}</Label>
                 <select 
                   id="availability"
                   value={selectedAvailability}
                   onChange={(e) => setSelectedAvailability(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="">All Doctors</option>
-                  <option value="today">Available Today</option>
-                  <option value="tomorrow">Available Tomorrow</option>
-                  <option value="week">This Week</option>
+                  <option value="">{t('selectAvailability')}</option>
+                  <option value="today">{t('availableToday')}</option>
+                  <option value="tomorrow">{t('availableTomorrow')}</option>
+                  <option value="week">{t('thisWeek')}</option>
                 </select>
               </div>
             </div>
             
             {/* Calendar */}
             <div className="mb-4">
-              <Label>Select Date</Label>
+              <Label>{t('preferredDate')}</Label>
               <div className="mt-2 p-4 border rounded-lg bg-background">
                 <div className="flex items-center justify-between mb-4">
                   <Button
@@ -422,13 +473,13 @@ export default function ConsultationsPage() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <h2 className="text-2xl font-semibold mb-6">Available Doctors</h2>
+            <h2 className="text-2xl font-semibold mb-6">{t('availableDoctors')}</h2>
             <div className="space-y-6">
               {filteredDoctors.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-8">
                     <p className="text-muted-foreground">
-                      {doctors.length === 0 ? 'No doctors available at the moment' : 'No doctors match your search criteria'}
+                      {doctors.length === 0 ? t('noDoctors') : 'No doctors match your search criteria'}
                     </p>
                   </CardContent>
                 </Card>
@@ -506,26 +557,36 @@ export default function ConsultationsPage() {
           <div>
             <Card className="sticky top-24">
               <CardHeader>
-                <CardTitle>Book Appointment</CardTitle>
+                <CardTitle>{t('bookAppointment')}</CardTitle>
                 <CardDescription>
-                  {selectedDoctor ? "Complete your booking details" : "Select a doctor to book appointment"}
+                  {selectedDoctor ? t('completeBooking') : t('selectDoctor')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {selectedDoctor ? (
                   <form onSubmit={handleBooking}>
                     <div className="space-y-4">
-
+                      <div className="bg-muted p-3 rounded-md">
+                        <p className="text-sm font-medium">Selected Date:</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedDate.toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                      </div>
 
                       <div>
-                        <Label htmlFor="time">Preferred Time</Label>
+                        <Label htmlFor="time">{t('preferredTime')}</Label>
                         <select 
                           value={bookingData.time}
                           onChange={(e) => setBookingData({...bookingData, time: e.target.value})}
                           required
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
-                          <option value="">Select time slot</option>
+                          <option value="">{t('selectTimeSlot')}</option>
                           {selectedDoctor && getAvailableTimesForDate(selectedDoctor, selectedDate).map((time) => (
                             <option key={time} value={time}>
                               {time}
@@ -535,22 +596,22 @@ export default function ConsultationsPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="type">Consultation Type</Label>
+                        <Label htmlFor="type">{t('consultationType')}</Label>
                         <select 
                           value={bookingData.type}
                           onChange={(e) => setBookingData({...bookingData, type: e.target.value})}
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
-                          <option value="video">Video Consultation</option>
-                          <option value="in-person">In-Person Visit</option>
+                          <option value="video">{t('videoConsultation')}</option>
+                          <option value="in-person">{t('inPersonVisit')}</option>
                         </select>
                       </div>
 
                       <div>
-                        <Label htmlFor="symptoms">Describe Your Symptoms</Label>
+                        <Label htmlFor="symptoms">{t('describeSymptoms')}</Label>
                         <Textarea
                           id="symptoms"
-                          placeholder="Please describe your symptoms or reason for consultation..."
+                          placeholder={t('symptomsPlaceholder')}
                           rows={3}
                           value={bookingData.symptoms}
                           onChange={(e) => setBookingData({...bookingData, symptoms: e.target.value})}
@@ -559,10 +620,10 @@ export default function ConsultationsPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="phone">Phone Number</Label>
+                        <Label htmlFor="phone">{t('phoneNumber')}</Label>
                         <Input 
                           id="phone" 
-                          placeholder="+91 XXXXX XXXXX" 
+                          placeholder={t('phonePlaceholder')} 
                           value={bookingData.phone}
                           onChange={(e) => setBookingData({...bookingData, phone: e.target.value})}
                           required
@@ -571,18 +632,18 @@ export default function ConsultationsPage() {
 
                       <Button type="submit" className="w-full" size="lg">
                         <Calendar className="mr-2 h-4 w-4" />
-                        Book Appointment
+                        {t('bookAppointment')}
                       </Button>
 
                       <p className="text-xs text-muted-foreground text-center">
-                        You will receive a confirmation call within 30 minutes
+                        {t('confirmationNote')}
                       </p>
                     </div>
                   </form>
                 ) : (
                   <div className="text-center py-8">
                     <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Please select a doctor from the list to book an appointment</p>
+                    <p className="text-muted-foreground">{t('pleaseSelect')}</p>
                   </div>
                 )}
               </CardContent>

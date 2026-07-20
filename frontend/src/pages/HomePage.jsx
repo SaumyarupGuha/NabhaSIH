@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 
 import { useAuth } from '../context/AuthContext';
 import { Heart, Stethoscope, Pill, Phone, Users, Clock, MapPin } from 'lucide-react';
@@ -12,6 +13,16 @@ import '../i18n';
 export default function HomePage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Simulate loading time for smooth experience
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 600);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const features = [
     {
@@ -73,6 +84,59 @@ export default function HomePage() {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <section className="relative py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto text-center">
+            <div className="mb-8">
+              <Skeleton variant="shimmer" className="h-24 w-24 mx-auto mb-4 rounded-full" />
+              <Skeleton variant="shimmer" className="h-12 w-96 mx-auto mb-6" />
+              <Skeleton variant="shimmer" className="h-6 w-[600px] mx-auto mb-8" />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Skeleton className="h-14 w-48" />
+              <Skeleton className="h-14 w-48" />
+            </div>
+          </div>
+        </section>
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+          <div className="max-w-7xl mx-auto">
+            <Skeleton className="h-8 w-96 mx-auto mb-12" />
+            <div className="grid md:grid-cols-3 gap-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader className="text-center">
+                    <Skeleton className="h-12 w-12 mx-auto mb-4" />
+                    <Skeleton className="h-6 w-32 mx-auto" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <Skeleton className="h-8 w-80 mx-auto mb-12" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="text-center">
+                  <Skeleton className="h-8 w-8 mx-auto mb-4" />
+                  <Skeleton className="h-8 w-16 mx-auto mb-2" />
+                  <Skeleton className="h-4 w-24 mx-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
