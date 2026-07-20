@@ -16,6 +16,7 @@ const ConsultationsPage = React.lazy(() => import('./pages/ConsultationsPage'));
 const PharmaciesPage = React.lazy(() => import('./pages/PharmaciesPage'));
 const HospitalsPage = React.lazy(() => import('./pages/HospitalsPage'));
 const HospitalDashboard = React.lazy(() => import('./pages/HospitalDashboard'));
+const PharmacyDashboard = React.lazy(() => import('./pages/PharmacyDashboard'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const DoctorConsultationsPage = React.lazy(() => import('./pages/DoctorConsultationsPage'));
 const VideoCall = React.lazy(() => import('./components/VideoCall'));
@@ -54,7 +55,7 @@ function App() {
                     element={<DoctorConsultationsPage />}
                   />
                 <Route path="/video-room/:roomId" element={<VideoCall />} />
-                <Route path="/pharmacy-dashboard" element={<div>Pharmacy Dashboard</div>} />
+                <Route path="/pharmacy-dashboard" element={<PharmacyDashboard />} />
                 <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </Suspense>
