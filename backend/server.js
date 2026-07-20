@@ -22,7 +22,7 @@ const handleOrderEvents = require('./socket/orderEvents');
 const app = express();
 const server = http.createServer(app);
 const ALLOWED_ORIGINS = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',')
+  ? process.env.FRONTEND_URL.split(',').map((o) => o.trim()).filter(Boolean)
   : ['http://localhost:3000'];
 
 const io = socketIo(server, {
