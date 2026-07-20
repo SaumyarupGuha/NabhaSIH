@@ -17,6 +17,9 @@ const healthDataRoutes = require('./routes/healthData');
 const testAlertRoutes = require('./routes/testAlert');
 const orderRoutes = require('./routes/orders');
 const stockRoutes = require('./routes/stock');
+const videoCallRoutes = require('./routes/videoCalls');
+const consultationRoutes = require('./routes/consultations');
+const onlinePrescriptionRoutes = require('./routes/onlinePrescriptions');
 const handleOrderEvents = require('./socket/orderEvents');
 
 const app = express();
@@ -68,10 +71,37 @@ io.on('connection', (socket) => {
     console.log(`📊 Total rooms:`, socket.rooms);
   });
   
+  // Join patient room for video calls
+  socket.on("joinPatientRoom", (patientId) => {
+    const roomName = `patient_${patientId}`;
+    socket.join(roomName);
+    console.log(`🏠 Patient ${patientId} joined room: ${roomName}`);
+    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} members`);
+    socket.emit("roomJoined", { room: roomName, patientId });
+  });
+
+  // Video call signaling
+  socket.on("joinVideoRoom", (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit("userJoined", socket.id);
+  });
+
+  socket.on("offer", (data) => {
+    socket.to(data.roomId).emit("offer", data);
+  });
+
+  socket.on("answer", (data) => {
+    socket.to(data.roomId).emit("answer", data);
+  });
+
+  socket.on("iceCandidate", (data) => {
+    socket.to(data.roomId).emit("iceCandidate", data);
+  });
+
   socket.on('disconnect', () => {
       console.log('🔌 Client disconnected:', socket.id);
-    });
   });
+});
 
 // Initialize order events
 handleOrderEvents(io);
@@ -88,6 +118,9 @@ handleOrderEvents(io);
   app.use('/api/test-alert', testAlertRoutes);
   app.use('/api/orders', orderRoutes);
   app.use('/api/stock', stockRoutes);
+  app.use('/api/video-calls', videoCallRoutes);
+  app.use('/api/consultations', consultationRoutes);
+  app.use('/api/online-prescriptions', onlinePrescriptionRoutes);
 
   // Health check route
   app.get('/api/health', (req, res) => {
@@ -112,6 +145,15 @@ handleOrderEvents(io);
   });
   app.use('/health-data', (req, res) => {
     res.redirect(308, `/api/health-data${req.path}`);
+  });
+  app.use('/video-calls', (req, res) => {
+    res.redirect(308, `/api/video-calls${req.path}`);
+  });
+  app.use('/consultations', (req, res) => {
+    res.redirect(308, `/api/consultations${req.path}`);
+  });
+  app.use('/online-prescriptions', (req, res) => {
+    res.redirect(308, `/api/online-prescriptions${req.path}`);
   });
 
 server.on('error', (error) => {
