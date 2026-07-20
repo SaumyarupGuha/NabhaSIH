@@ -20,6 +20,7 @@ A MERN stack application for rural healthcare services in Nabha, Punjab.
 - JWT Authentication
 - bcryptjs for password hashing
 - Express Validator for input validation
+- Socket.io
 
 ### Frontend
 
