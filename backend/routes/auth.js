@@ -12,68 +12,80 @@ const generateToken = (userId) => {
 };
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', [
+  body('firstName').notEmpty().trim().withMessage('First name is required'),
+  body('lastName').notEmpty().trim().withMessage('Last name is required'),
+  body('phone').notEmpty().withMessage('Phone number is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').isIn(['patient', 'doctor', 'pharmacist']).withMessage('Invalid role'),
+  body('village').notEmpty().withMessage('Village is required'),
+  // Conditional validations
+  body('age').if(body('role').equals('patient')).isInt({ min: 1, max: 120 }).withMessage('Valid age is required for patients'),
+  body('gender').if(body('role').equals('patient')).isIn(['male', 'female', 'other']).withMessage('Valid gender is required for patients'),
+  body('license').if(body('role').equals('doctor')).notEmpty().withMessage('Medical license is required for doctors'),
+  body('specialization').if(body('role').equals('doctor')).notEmpty().withMessage('Specialization is required for doctors'),
+  body('hospital').if(body('role').equals('doctor')).notEmpty().withMessage('Hospital/clinic is required for doctors'),
+  body('consultationFee').if(body('role').equals('doctor')).isFloat({ min: 0 }).withMessage('Valid consultation fee is required for doctors'),
+  body('availableDays').if(body('role').equals('doctor')).isArray({ min: 1 }).withMessage('At least one available day is required for doctors'),
+  body('pharmacyName').if(body('role').equals('pharmacist')).notEmpty().withMessage('Pharmacy name is required for pharmacists'),
+  body('pharmacyAddress').if(body('role').equals('pharmacist')).notEmpty().withMessage('Pharmacy address is required for pharmacists')
+], async (req, res) => {
   try {
-    console.log('Registration data:', req.body);
-    const { firstName, lastName, email, phone, password, role, village, age, gender, license, specialization, hospital, consultationFee, availableDays, selectedPharmacy } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessage = errors.array().map(err => err.msg).join(', ');
+      return res.status(400).json({ message: errorMessage, errors: errors.array() });
+    }
+
+    const {
+      firstName, lastName, email, phone, password,
+      role, village, age, gender,
+      license, specialization, hospital, availableDays, consultationFee,
+      pharmacyName, pharmacyAddress
+    } = req.body;
+
+    // Normalize phone number
+    const normalizedPhone = phone.replace(/\D/g, '');
 
     // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ phone }, ...(email ? [{ email }] : [])]
+    const existingUser = await User.findOne({
+      $or: [
+        { phone: normalizedPhone },
+        { phone: phone },
+        ...(email ? [{ email: email.toLowerCase() }] : [])
+      ]
     });
-    
+
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists with this phone or email' });
+      return res.status(400).json({ message: 'User already exists with this phone number or email' });
     }
 
-    // Additional validation for pharmacist role
-    if (role === 'pharmacist') {
-      if (!selectedPharmacy) {
-        return res.status(400).json({ message: 'Pharmacy selection is required for pharmacist registration' });
-      }
-      
-      if (!license) {
-        return res.status(400).json({ message: 'Pharmacy license is required for pharmacist registration' });
-      }
-      
-      // Check if pharmacy already has a pharmacist
-      const existingPharmacist = await User.findOne({ 
-        role: 'pharmacist', 
-        selectedPharmacy: selectedPharmacy,
-        isVerified: true 
-      });
-      
-      if (existingPharmacist) {
-        return res.status(400).json({ 
-          message: 'This pharmacy already has a registered pharmacist. Only one pharmacist per pharmacy is allowed.' 
-        });
-      }
-    }
-
-    // Create user
+    // Create user object
     const userData = {
-      firstName,
-      lastName,
-      phone,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: normalizedPhone,
       password,
       role,
       village
     };
 
-    if (email) userData.email = email;
+    if (email && email.trim()) {
+      userData.email = email.toLowerCase().trim();
+    }
+
     if (role === 'patient') {
-      userData.age = age;
+      userData.age = parseInt(age);
       userData.gender = gender;
     } else if (role === 'doctor') {
-      userData.license = license;
-      userData.specialization = specialization;
-      userData.hospital = hospital;
-      userData.consultationFee = consultationFee;
+      userData.license = license.trim();
+      userData.specialization = specialization.trim();
+      userData.hospital = hospital.trim();
       userData.availableDays = availableDays || [];
+      userData.consultationFee = parseFloat(consultationFee) || 0;
     } else if (role === 'pharmacist') {
-      userData.selectedPharmacy = selectedPharmacy;
-      userData.license = license;
-      userData.isVerified = false; // Pharmacists need admin approval
+      userData.pharmacyName = pharmacyName.trim();
+      userData.pharmacyAddress = pharmacyAddress.trim();
     }
 
     const user = new User(userData);
@@ -96,7 +108,32 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+
+    // Handle MongoDB validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return res.status(400).json({ errors });
+    }
+
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        errors: [{
+          field,
+          message: `${field === 'phone' ? 'Phone number' : field} already exists`
+        }]
+      });
+    }
+
+    // Fallback
+    res.status(500).json({
+      message: 'Server error during registration',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -114,14 +151,17 @@ router.post('/login', [
 
     const { contact, password, role } = req.body;
 
+    // Normalize phone for login
+    const normalizedContact = contact.replace(/\D/g, '');
+
     // Find user by phone or email
     const user = await User.findOne({
       $and: [
         { role },
         {
           $or: [
-            { phone: contact },
-            { email: contact }
+            { phone: normalizedContact },
+            { email: contact.toLowerCase() }
           ]
         }
       ]
@@ -143,6 +183,7 @@ router.post('/login', [
       message: 'Login successful',
       token,
       user: {
+        _id: user._id,
         id: user._id,
         name: user.fullName,
         email: user.email,
@@ -158,10 +199,16 @@ router.post('/login', [
   }
 });
 
+// Test route
+router.get('/test', (req, res) => {
+  res.json({ message: 'Auth routes are working', timestamp: new Date().toISOString() });
+});
+
 // Get current user
 router.get('/me', auth, async (req, res) => {
   res.json({
     user: {
+      _id: req.user._id,
       id: req.user._id,
       name: req.user.fullName,
       email: req.user.email,

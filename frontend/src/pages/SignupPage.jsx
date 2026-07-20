@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
@@ -10,7 +10,6 @@ import { useAuth } from '../context/AuthContext';
 import { TermsModal } from '../components/TermsModal';
 import { PrivacyModal } from '../components/PrivacyModal';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
-import { pharmacyAPI } from '../lib/api';
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -29,11 +28,11 @@ export default function SignupPage() {
     license: '',
     specialization: '',
     hospital: '',
-    consultationFee: '',
     availableDays: [],
-    selectedPharmacy: ''
+    consultationFee: '',
+    pharmacyName: '',
+    pharmacyAddress: ''
   });
-  const [pharmacies, setPharmacies] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -42,24 +41,12 @@ export default function SignupPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchPharmacies = async () => {
-      try {
-        const response = await pharmacyAPI.getPharmacies();
-        setPharmacies(response.data.data);
-      } catch (error) {
-        console.error('Error fetching pharmacies:', error);
-      }
-    };
-    fetchPharmacies();
-  }, []);
-
   const villages = [
   "Abhepur","Achal","Agaul","Ageta","Ageti","Ajnauda kalan","Ajnauda Khurd","Akalgarh","Alampur","Alipur",
   "Allowal","Babarpur","Banera kalan","Banera Khurd","Barhe","Bauran Kalan","Bauran Khurd","Bazidpur","Bazidri","Behbalpur",
   "Bhari Panechan","Bhilowal","Bhojo Majri","Bhore","Bina Heri","Bir Agaul","Bir Bauran","Bir Dosanjhan","Birarhwal","Birdhano",
   "Bishangarh","Bishanpura","Bugga Khurd","Chahal","Chaswal","Chathe","Chhaju Bhatt","Chhana Nathuwali","Choudhri Majra","Dakaunda",
-  "Dandrala Dhindsa","Dandrala Kharaur","Dargapur","Dewangarh","Dhanaura","Dhanauri","Dhangera","Dharoki","Dhingi",
+  "Dandrala Dhindsa","Dandrala Kharaur","Dargapur","Dewangarh","Dhanaura","Dhanauri","Dhanauri","Dhangera","Dharoki","Dhingi",
   "Dhundewal","Dittupur Jattan","Doda","Duladi","Faizgarh","Faridpur","Fatehpur","Gadaya","Galwati","Ghamrouda",
   "Ghaniawal","Ghanurki","Ghunder","Gobindgarh Chhanna","Gobindpura","Gujarheri","Gunike","Gurditpura","Hakimpur","Halla",
   "Halotali","Hari nagar","Harigarh","Hassanpur","Hiana kalan","Hiana Khurd","Ichhewal","Jasso Majra","Jatiwal","Jhambali Khas",
@@ -68,7 +55,7 @@ export default function SignupPage() {
   "Kotli","Kularan","Labana Karmoo","Labana Teku","Ladha Heri","Lalauda","Lohar Majra","Lopa","Lout","Malewal",
   "Malkon","Mandaur","Mangewal","Mansurpur","Matourda","Mehas","Mohal Gawara","Mungo","Nabha","Nanoki",
   "Nanowal","Naraingarh","Narmana","Nauhra","Paharpur","Pahlia Kalan","Pahlia Khurd","Paidan","Pednni Khurd","Raimal Majri",
-  "Raisal","Raj Garh","Rajpura","Ramgarh","Ramgarh Chhanna","Rampur Sahiewal","Ranjitgarh","Ranno","Rohta",
+  "Raisal","Raj Garh","Rajpura","Ramgarh","Ramgarh","Ramgarh Chhanna","Rampur Sahiewal","Ranjitgarh","Ranno","Rohta",
   "Rohti Basta Singh","Rohti Chhanna","Rohti Khas","Rohti Mouran","Sadhnauli","Sadho Heri","Sahauli","Sakohan","Sakrali","Saluwala",
   "Sangatpura","Sauja","Shahpur","Shamaspur","Shamla","Shivgarh","Simbhron","Siri Nagar","Sudhewal","Sukhewal",
   "Suraajpur","Tarkheri Kalan","Tarkheri khurd","Thuhi","Todarwal","Tohra","Tungan","Udha","Uplan"
@@ -85,8 +72,56 @@ export default function SignupPage() {
       return;
     }
 
+    // Validate role-specific required fields
+    if (formData.role === 'doctor') {
+      if (!formData.license || !formData.specialization || !formData.hospital || !formData.consultationFee || formData.availableDays.length === 0) {
+        setError('Please fill all required doctor fields');
+        return;
+      }
+    } else if (formData.role === 'pharmacist') {
+      if (!formData.pharmacyName || !formData.pharmacyAddress) {
+        setError('Please fill all required pharmacist fields');
+        return;
+      }
+    } else if (formData.role === 'patient') {
+      if (!formData.age || !formData.gender) {
+        setError('Please fill all required patient fields');
+        return;
+      }
+    }
+
+    // Prepare data for submission
+    const submitData = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      phone: formData.phone.trim(),
+      password: formData.password,
+      role: formData.role,
+      village: formData.village
+    };
+
+    // Add optional email if provided
+    if (formData.email.trim()) {
+      submitData.email = formData.email.trim();
+    }
+
+    // Add role-specific fields
+    if (formData.role === 'patient') {
+      submitData.age = parseInt(formData.age);
+      submitData.gender = formData.gender;
+    } else if (formData.role === 'doctor') {
+      submitData.license = formData.license.trim();
+      submitData.specialization = formData.specialization.trim();
+      submitData.hospital = formData.hospital.trim();
+      submitData.availableDays = formData.availableDays;
+      submitData.consultationFee = parseFloat(formData.consultationFee);
+    } else if (formData.role === 'pharmacist') {
+      submitData.pharmacyName = formData.pharmacyName.trim();
+      submitData.pharmacyAddress = formData.pharmacyAddress.trim();
+    }
+
     setLoading(true);
-    const result = await register(formData);
+    const result = await register(submitData);
     
     if (result.success) {
       navigate('/');
@@ -162,37 +197,39 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="age">Age / उम्र / ਉਮਰ</Label>
-                  <Input 
-                    id="age" 
-                    name="age"
-                    type="number" 
-                    placeholder="Enter age" 
-                    min="1" 
-                    max="120" 
-                    value={formData.age}
-                    onChange={handleChange}
-                    required 
-                  />
+              {(formData.role === 'patient' || formData.role === '') && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="age">Age / उम्र / ਉਮਰ {formData.role === 'patient' && '*'}</Label>
+                    <Input 
+                      id="age" 
+                      name="age"
+                      type="number" 
+                      placeholder="Enter age" 
+                      min="1" 
+                      max="120" 
+                      value={formData.age}
+                      onChange={handleChange}
+                      required={formData.role === 'patient'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender / लिंग / ਲਿੰਗ {formData.role === 'patient' && '*'}</Label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      required={formData.role === 'patient'}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">Select gender</option>
+                      <option value="male">Male / पुरुष / ਮਰਦ</option>
+                      <option value="female">Female / महिला / ਔਰਤ</option>
+                      <option value="other">Other / अन्य / ਹੋਰ</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender / लिंग / ਲਿੰਗ</Label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    required
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="">Select gender</option>
-                    <option value="male">Male / पुरुष / ਮਰਦ</option>
-                    <option value="female">Female / महिला / ਔਰਤ</option>
-                    <option value="other">Other / अन्य / ਹੋਰ</option>
-                  </select>
-                </div>
-              </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -288,22 +325,22 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label>Available Days</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
                         <label key={day} className="flex items-center space-x-2">
                           <input
                             type="checkbox"
                             checked={formData.availableDays.includes(day)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  availableDays: [...prev.availableDays, day]
-                                }));
+                                setFormData({
+                                  ...formData,
+                                  availableDays: [...formData.availableDays, day]
+                                });
                               } else {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  availableDays: prev.availableDays.filter(d => d !== day)
-                                }));
+                                setFormData({
+                                  ...formData,
+                                  availableDays: formData.availableDays.filter(d => d !== day)
+                                });
                               }
                             }}
                           />
@@ -318,32 +355,26 @@ export default function SignupPage() {
               {formData.role === "pharmacist" && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="license">Pharmacy License Number</Label>
-                    <Input
-                      id="license"
-                      name="license"
-                      placeholder="Enter pharmacy license number"
-                      value={formData.license}
+                    <Label htmlFor="pharmacyName">Pharmacy Name</Label>
+                    <Input 
+                      id="pharmacyName" 
+                      name="pharmacyName"
+                      placeholder="Enter pharmacy name" 
+                      value={formData.pharmacyName}
                       onChange={handleChange}
-                      required
+                      required 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="selectedPharmacy">Select Pharmacy</Label>
-                    <select
-                      name="selectedPharmacy"
-                      value={formData.selectedPharmacy}
+                    <Label htmlFor="pharmacyAddress">Pharmacy Address</Label>
+                    <Textarea 
+                      id="pharmacyAddress" 
+                      name="pharmacyAddress"
+                      placeholder="Enter complete address" 
+                      value={formData.pharmacyAddress}
                       onChange={handleChange}
-                      required
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      <option value="">Select a pharmacy</option>
-                      {pharmacies.map((pharmacy) => (
-                        <option key={pharmacy._id} value={pharmacy._id}>
-                          {pharmacy.name} - {pharmacy.address}
-                        </option>
-                      ))}
-                    </select>
+                      required 
+                    />
                   </div>
                 </>
               )}

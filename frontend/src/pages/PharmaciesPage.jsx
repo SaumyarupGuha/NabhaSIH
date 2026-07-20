@@ -1,158 +1,114 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
+import { Skeleton, ListSkeleton } from '../components/ui/Skeleton';
 import { useCart } from '../context/CartContext';
 import { CartModal } from '../components/CartModal';
+
 import { PrescriptionUpload } from '../components/PrescriptionUpload';
+import { pharmacyAPI } from '../lib/api';
 import { MapPin, Phone, Clock, Star, Search, NavigationIcon, Pill, ShoppingCart } from 'lucide-react';
-import { API_BASE_URL } from '../lib/api';
 
 export default function PharmaciesPage() {
+  const { t } = useTranslation('pharmacies');
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState([]);
+
   const [isPrescriptionUploadOpen, setIsPrescriptionUploadOpen] = useState(false);
-  const { addToCart, isCartOpen, setIsCartOpen, getCartCount } = useCart();
-  const [availableMedicines, setAvailableMedicines] = useState([]);
+  const { addToCart, setIsCartOpen, getCartCount } = useCart();
+
+  const commonMedicines = [
+    { name: "Paracetamol 500mg", price: "₹15", availability: "In Stock" },
+    { name: "Crocin Advance", price: "₹25", availability: "In Stock" },
+    { name: "Cough Syrup", price: "₹45", availability: "In Stock" },
+    { name: "ORS Packets", price: "₹8", availability: "In Stock" },
+    { name: "Vitamin D3", price: "₹120", availability: "Limited Stock" },
+    { name: "Amoxicillin 250mg", price: "₹85", availability: "In Stock" },
+  ];
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPharmacies = async () => {
       try {
-        const pharmaciesResponse = await fetch(`${API_BASE_URL}/pharmacies`);
-        const pharmaciesData = await pharmaciesResponse.json();
-        if (pharmaciesData.success) {
-          setPharmacies(pharmaciesData.data);
-        }
-
-        const stockResponse = await fetch(`${API_BASE_URL}/stock/pharmacy/1`);
-        const stockData = await stockResponse.json();
-        if (stockData.success && stockData.data) {
-          setAvailableMedicines(stockData.data.map(item => ({
-            _id: item._id,
-            name: item.medicineName,
-            price: `₹${item.unitPrice}`,
-            unitPrice: item.unitPrice,
-            availability: item.quantity > 0 ? (item.quantity <= item.minStockLevel ? "Limited Stock" : "In Stock") : "Out of Stock",
-            quantity: item.quantity,
-            category: item.category,
-            manufacturer: item.manufacturer,
-            expiryDate: item.expiryDate
-          })));
-        } else {
-          setAvailableMedicines([
-            { _id: '1', name: "Paracetamol 500mg", price: "₹2.50", unitPrice: 2.50, availability: "In Stock", quantity: 100 },
-            { _id: '2', name: "Amoxicillin 250mg", price: "₹8.00", unitPrice: 8.00, availability: "In Stock", quantity: 50 },
-            { _id: '3', name: "Cough Syrup", price: "₹45.00", unitPrice: 45.00, availability: "In Stock", quantity: 25 },
-            { _id: '4', name: "Insulin Injection", price: "₹120.00", unitPrice: 120.00, availability: "In Stock", quantity: 15 },
-            { _id: '5', name: "Vitamin D3", price: "₹5.00", unitPrice: 5.00, availability: "In Stock", quantity: 80 },
-            { _id: '6', name: "Aspirin 75mg", price: "₹1.50", unitPrice: 1.50, availability: "Limited Stock", quantity: 5 },
-          ]);
+        const response = await fetch('https://nabhasih-1.onrender.com/api/pharmacies');
+        const data = await response.json();
+        if (data.success) {
+          setPharmacies(data.data);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setAvailableMedicines([
-          { _id: '1', name: "Paracetamol 500mg", price: "₹2.50", unitPrice: 2.50, availability: "In Stock", quantity: 100 },
-          { _id: '2', name: "Amoxicillin 250mg", price: "₹8.00", unitPrice: 8.00, availability: "In Stock", quantity: 50 },
-          { _id: '3', name: "Cough Syrup", price: "₹45.00", unitPrice: 45.00, availability: "In Stock", quantity: 25 },
-        ]);
+        console.error('Error fetching pharmacies:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchPharmacies();
   }, []);
-
-  const addToLocalCart = (medicine) => {
-    const normalizedMedicine = {
-      _id: medicine._id,
-      name: medicine.name,
-      medicineName: medicine.name,
-      price: medicine.price,
-      unitPrice: medicine.unitPrice,
-      availability: medicine.availability,
-      quantity: medicine.quantity,
-      category: medicine.category,
-      manufacturer: medicine.manufacturer
-    };
-    
-    const existingItem = cart.find(item => item._id === medicine._id);
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item._id === medicine._id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...normalizedMedicine, quantity: 1 }]);
-    }
-    addToCart(normalizedMedicine);
-  };
-
-  const createOrder = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const orderItems = cart.map(item => ({
-        medicineName: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.unitPrice * item.quantity
-      }));
-
-      const orderData = {
-        orderType: 'patient',
-        items: orderItems,
-        customerInfo: {
-          name: user.firstName ? `${user.firstName} ${user.lastName}` : 'Test Customer',
-          phone: user.phone || '+919999999999',
-          address: 'Test Address, Nabha'
-        },
-        deliveryType: 'delivery',
-        deliveryAddress: 'Test Address, Nabha',
-        orderedBy: user._id || '507f1f77bcf86cd799439011'
-      };
-
-      const response = await fetch(`${API_BASE_URL}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        alert(`Order created successfully! Order Number: ${result.data.orderNumber}`);
-        setCart([]);
-        setIsCartOpen(false);
-      } else {
-        alert(`Order failed: ${result.message}`);
-      }
-    } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Error creating order. Please try again.');
-    }
-  };
-
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.unitPrice * item.quantity), 0).toFixed(2);
-  };
-
-  const getLocalCartCount = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
-  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">Loading pharmacies...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid md:grid-cols-4 gap-4 mb-8">
+            <div className="md:col-span-2">
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-6">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton variant="shimmer" className="h-6 w-32" />
+              </div>
+              <ListSkeleton count={4} variant="shimmer" />
+            </div>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <Skeleton variant="shimmer" className="h-6 w-48" />
+                  <Skeleton className="h-4 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32 mb-1" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-5 w-16" />
+                          <Skeleton className="h-8 w-12" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Skeleton className="h-10 w-full mt-4" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-16 w-full mb-4" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -164,9 +120,9 @@ export default function PharmaciesPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Pharmacies</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
           <p className="text-muted-foreground">
-            Find local pharmacies in Nabha and surrounding areas for medicine delivery
+            {t('subtitle')}
           </p>
         </div>
 
@@ -174,7 +130,7 @@ export default function PharmaciesPage() {
           <div className="md:col-span-2">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search medicines or pharmacy name..." className="pl-10" />
+              <Input placeholder={t('searchPlaceholder')} className="pl-10" />
             </div>
           </div>
 
@@ -183,20 +139,20 @@ export default function PharmaciesPage() {
             onClick={() => setIsPrescriptionUploadOpen(true)}
           >
             <Pill className="mr-2 h-4 w-4" />
-            Upload Prescription
+            {t('uploadPrescription')}
           </Button>
           <Button variant="outline" className="w-full">
             <Phone className="mr-2 h-4 w-4" />
-            Emergency Order
+            {t('emergencyOrder')}
           </Button>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">Local Pharmacies</h2>
+              <h2 className="text-2xl font-semibold">{t('localPharmacies')}</h2>
               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                {pharmacies.length} pharmacies available
+                {pharmacies.length} {t('pharmaciesAvailable')}
               </Badge>
             </div>
 
@@ -204,7 +160,7 @@ export default function PharmaciesPage() {
               {pharmacies.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">No pharmacies available</p>
+                    <p className="text-muted-foreground">{t('noPharmacies')}</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -214,6 +170,11 @@ export default function PharmaciesPage() {
                     className={`cursor-pointer transition-all ${
                       selectedPharmacy?._id === pharmacy._id ? "ring-2 ring-primary" : "hover:shadow-lg"
                     }`}
+                    onClick={() => {
+                      const googleQuery = `${pharmacy.name} ${pharmacy.address} Nabha Punjab reviews`;
+                      const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`;
+                      window.open(googleUrl, '_blank');
+                    }}
                   >
                     <CardContent className="p-6">
                       <div className="flex gap-4">
@@ -231,13 +192,13 @@ export default function PharmaciesPage() {
                             <div className="text-right">
                               <div className="flex items-center gap-1 mb-1">
                                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                <span className="font-medium">{pharmacy.rating || '4.5'}</span>
+                                <span className="font-medium">{pharmacy.rating}</span>
                               </div>
                               <Badge 
                                 variant="secondary" 
-                                className="bg-green-100 text-green-700"
+                                className={pharmacy.isOpen24Hours ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}
                               >
-                                Open
+                                {pharmacy.isOpen24Hours ? "Open 24/7" : pharmacy.status}
                               </Badge>
                             </div>
                           </div>
@@ -249,7 +210,7 @@ export default function PharmaciesPage() {
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              {pharmacy.hours || '9:00 AM - 9:00 PM'}
+                              {pharmacy.hours}
                             </div>
                             {pharmacy.phone && (
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -259,24 +220,53 @@ export default function PharmaciesPage() {
                             )}
                           </div>
 
+                          <div className="mb-4">
+                            <p className="text-sm font-medium mb-2">Services:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {pharmacy.services.map((service, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {service}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
                           <div className="flex gap-2">
                             <Button 
                               size="sm" 
-                              onClick={() => setIsCartOpen(true)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsCartOpen(true);
+                              }}
                             >
                               <Pill className="mr-2 h-4 w-4" />
-                              Order Medicines
+                              {t('orderMedicines')}
                             </Button>
                             {pharmacy.phone && (
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                onClick={() => window.open(`tel:${pharmacy.phone}`, '_self')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`tel:${pharmacy.phone}`, '_self');
+                                }}
                               >
                                 <Phone className="mr-2 h-4 w-4" />
-                                Call Now
+                                {t('callNow')}
                               </Button>
                             )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const mapsUrl = `https://maps.google.com/maps?q=${encodeURIComponent(pharmacy.address + ', Nabha, Punjab')}`;
+                                window.open(mapsUrl, '_blank');
+                              }}
+                            >
+                              <NavigationIcon className="mr-2 h-4 w-4" />
+                              {t('getDirections')}
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -290,17 +280,16 @@ export default function PharmaciesPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Quick Medicine Order</CardTitle>
-                <CardDescription>Order common medicines instantly</CardDescription>
+                <CardTitle>{t('quickMedicineOrder')}</CardTitle>
+                <CardDescription>{t('orderCommonMedicines')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {availableMedicines.map((medicine) => (
-                    <div key={medicine._id} className="flex items-center justify-between p-3 border rounded-lg">
+                  {commonMedicines.map((medicine, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
                       <div className="flex-1">
                         <h4 className="font-medium text-sm">{medicine.name}</h4>
                         <p className="text-xs text-muted-foreground">{medicine.price}</p>
-                        <p className="text-xs text-muted-foreground">Stock: {medicine.quantity}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge
@@ -308,9 +297,7 @@ export default function PharmaciesPage() {
                           className={
                             medicine.availability === "In Stock"
                               ? "bg-green-100 text-green-800"
-                              : medicine.availability === "Limited Stock"
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-red-100 text-red-800"
+                              : "bg-orange-100 text-orange-800"
                           }
                         >
                           {medicine.availability}
@@ -319,8 +306,7 @@ export default function PharmaciesPage() {
                           size="sm" 
                           variant="outline" 
                           className="text-xs"
-                          onClick={() => addToLocalCart(medicine)}
-                          disabled={medicine.availability === "Out of Stock"}
+                          onClick={() => addToCart(medicine)}
                         >
                           Add
                         </Button>
@@ -333,23 +319,23 @@ export default function PharmaciesPage() {
                   onClick={() => setIsCartOpen(true)}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  View Cart ({getLocalCartCount()})
+                  {t('viewCart')} ({getCartCount()}) {t('checkout')}
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="border-destructive/20 bg-destructive/5">
               <CardHeader>
-                <CardTitle className="text-destructive">Emergency Medicine</CardTitle>
-                <CardDescription>24/7 emergency medicine delivery</CardDescription>
+                <CardTitle className="text-destructive">{t('emergencyMedicine')}</CardTitle>
+                <CardDescription>{t('emergencyDelivery')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Need urgent medicines? Call our emergency hotline for immediate assistance.
+                  {t('emergencyDescription')}
                 </p>
                 <Button variant="destructive" className="w-full">
                   <Phone className="mr-2 h-4 w-4" />
-                  Call Emergency: 108
+                  {t('callEmergency')}
                 </Button>
               </CardContent>
             </Card>

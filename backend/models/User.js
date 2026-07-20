@@ -21,7 +21,13 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    validate: {
+      validator: function(v) {
+        return /^[0-9]{10}$/.test(v); // 10 digit phone number
+      },
+      message: 'Phone number must be 10 digits'
+    }
   },
   password: {
     type: String,
@@ -69,29 +75,23 @@ const userSchema = new mongoose.Schema({
     required: function() { return this.role === 'doctor'; }
   },
   // Pharmacist specific fields
-  selectedPharmacy: {
+  pharmacyName: {
     type: String,
     required: function() { return this.role === 'pharmacist'; }
   },
-  // Keep old fields for backward compatibility
-  pharmacyName: {
-    type: String,
-    required: false
-  },
   pharmacyAddress: {
     type: String,
-    required: false
+    required: function() { return this.role === 'pharmacist'; }
   },
   isVerified: {
     type: Boolean,
     default: function() { return this.role === 'patient'; }
   },
   // Patient-Doctor relationship
-  // assignedDoctor: {
-  //   type: mongoose.Schema.Types.ObjectId,
-  //   ref: 'User',
-  //   required: function() { return this.role === 'patient'; }
-  // },
+  assignedDoctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   avatar: String
 }, {
   timestamps: true
