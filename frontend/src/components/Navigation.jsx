@@ -44,7 +44,6 @@ export function Navigation() {
         return [
           ...baseItems,
           { href: "/pharmacy-dashboard", label: t('nav.pharmacyDashboard') },
-          { href: "/pharmacies", label: t('nav.pharmacies') },
         ];
       case "admin":
         return [
@@ -69,18 +68,20 @@ export function Navigation() {
             <span>Nabha Health</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-6">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={`text-foreground hover:text-primary transition-colors font-medium ${
-                  location.pathname === item.href ? 'text-primary' : ''
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+          <div className="flex-1 flex justify-center">
+            <div className="hidden md:flex items-center gap-6">
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`text-foreground hover:text-primary transition-colors font-medium ${
+                    location.pathname === item.href ? 'text-primary' : ''
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">

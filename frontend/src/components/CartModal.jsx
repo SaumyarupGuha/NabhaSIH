@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Button } from './ui/Button';
 import { X, Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
+import api from '../lib/api';
 
 export const CartModal = () => {
   const { 
@@ -19,18 +20,103 @@ export const CartModal = () => {
     name: '',
     phone: '',
     address: '',
-    paymentMethod: 'cod'
+    paymentMethod: 'cod',
+    coordinates: null
   });
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   if (!isCartOpen) return null;
 
-  const handleCheckout = (e) => {
+  const getCurrentLocation = () => {
+    setGettingLocation(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setOrderData(prev => ({ ...prev, coordinates: coords }));
+          setGettingLocation(false);
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          alert('Could not get your location. Please enter address manually.');
+          setGettingLocation(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    } else {
+      alert('Geolocation is not supported by this browser.');
+      setGettingLocation(false);
+    }
+  };
+
+  const handleCheckout = async (e) => {
     e.preventDefault();
-    // Simulate order placement
-    alert(`Order placed successfully! Total: ₹${getCartTotal().toFixed(2)}\nDelivery in 30-45 minutes.`);
-    clearCart();
-    setIsCartOpen(false);
-    setShowCheckout(false);
+    
+    try {
+      // Validate cart items
+      const validItems = cartItems.filter(item => item && (item.name || item.medicineName));
+      if (validItems.length === 0) {
+        alert('Your cart is empty!');
+        return;
+      }
+      
+      const orderPayload = {
+        orderType: 'patient',
+        items: validItems.map(item => ({
+          medicineName: item.name || item.medicineName,
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || parseFloat((item.price || '0').replace('₹', '')),
+          totalPrice: (item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))) * (item.quantity || 1)
+        })),
+        customerInfo: {
+          name: orderData.name,
+          phone: orderData.phone,
+          address: orderData.address
+        },
+        deliveryType: 'delivery',
+        deliveryAddress: orderData.address,
+        coordinates: orderData.coordinates || { lat: 30.7046, lng: 76.1512 },
+        orderedBy: '68ccf820249ad6de413eab2f'
+      };
+
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login to place an order');
+        return;
+      }
+
+      const response = await api.post('/orders', {
+        medicines: validItems.map(item => ({
+          name: item.name || item.medicineName,
+          quantity: item.quantity || 1,
+          price: item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))
+        })),
+        deliveryAddress: orderData.address,
+        totalAmount: getCartTotal()
+      });
+
+      const result = response.data;
+      
+      if (result.success) {
+        alert(`Order placed successfully! Order ID: ${result.order._id}\nEstimated delivery: 30-45 minutes`);
+        clearCart();
+        setIsCartOpen(false);
+        setShowCheckout(false);
+      } else {
+        alert('Error placing order: ' + (result.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Order error:', error);
+      if (error.response?.data?.message) {
+        alert('Error placing order: ' + error.response.data.message);
+      } else {
+        alert('Error placing order. Please try again.');
+      }
+    }
   };
 
   return (
@@ -56,11 +142,11 @@ export const CartModal = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {cartItems.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between p-4 border rounded-lg">
+                  {cartItems.filter(item => item && (item.name || item.medicineName)).map((item, index) => (
+                    <div key={item.name || item.medicineName || index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
-                        <h3 className="font-medium">{item.name}</h3>
-                        <p className="text-sm text-gray-600">{item.price} each</p>
+                        <h3 className="font-medium">{item.name || item.medicineName}</h3>
+                        <p className="text-sm text-gray-600">{item.price || `₹${item.unitPrice}`} each</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           item.availability === "In Stock" 
                             ? "bg-green-100 text-green-800" 
@@ -73,14 +159,14 @@ export const CartModal = () => {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQuantity(item.name, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.name || item.medicineName, (item.quantity || 1) - 1)}
                             className="p-1 rounded-full hover:bg-gray-100"
                           >
                             <Minus className="h-4 w-4" />
                           </button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <span className="w-8 text-center font-medium">{item.quantity || 1}</span>
                           <button
-                            onClick={() => updateQuantity(item.name, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.name || item.medicineName, (item.quantity || 1) + 1)}
                             className="p-1 rounded-full hover:bg-gray-100"
                           >
                             <Plus className="h-4 w-4" />
@@ -89,12 +175,12 @@ export const CartModal = () => {
                         
                         <div className="text-right">
                           <p className="font-medium">
-                            ₹{(parseFloat(item.price.replace('₹', '')) * item.quantity).toFixed(2)}
+                            ₹{((item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))) * (item.quantity || 1)).toFixed(2)}
                           </p>
                         </div>
                         
                         <button
-                          onClick={() => removeFromCart(item.name)}
+                          onClick={() => removeFromCart(item.name || item.medicineName)}
                           className="p-1 text-red-500 hover:bg-red-50 rounded-full"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -133,10 +219,10 @@ export const CartModal = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">Order Summary</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  {cartItems.map((item) => (
-                    <div key={item.name} className="flex justify-between text-sm mb-1">
-                      <span>{item.name} x{item.quantity}</span>
-                      <span>₹{(parseFloat(item.price.replace('₹', '')) * item.quantity).toFixed(2)}</span>
+                  {cartItems.filter(item => item && (item.name || item.medicineName)).map((item, index) => (
+                    <div key={item.name || item.medicineName || index} className="flex justify-between text-sm mb-1">
+                      <span>{item.name || item.medicineName} x{item.quantity || 1}</span>
+                      <span>₹{((item.unitPrice || parseFloat((item.price || '0').replace('₹', ''))) * (item.quantity || 1)).toFixed(2)}</span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2 font-semibold">
@@ -175,14 +261,31 @@ export const CartModal = () => {
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Delivery Address</label>
-                  <textarea
-                    required
-                    value={orderData.address}
-                    onChange={(e) => setOrderData({...orderData, address: e.target.value})}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    rows="3"
-                    placeholder="Enter complete delivery address"
-                  />
+                  <div className="space-y-2">
+                    <textarea
+                      required
+                      value={orderData.address}
+                      onChange={(e) => setOrderData({...orderData, address: e.target.value})}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      rows="3"
+                      placeholder="Enter complete delivery address"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={getCurrentLocation}
+                      disabled={gettingLocation}
+                      className="w-full"
+                    >
+                      {gettingLocation ? 'Getting Location...' : '📍 Use Current Location'}
+                    </Button>
+                    {orderData.coordinates && (
+                      <p className="text-xs text-green-600">
+                        ✓ Location detected for accurate pharmacy assignment
+                      </p>
+                    )}
+                  </div>
                 </div>
                 
                 <div>
